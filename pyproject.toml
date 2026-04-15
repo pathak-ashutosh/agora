@@ -1,0 +1,9 @@
+[project]
+name = "agora-data-prep"
+version = "0.1.0"
+description = "Convert raw caucus CSVs to Parquet for the agora web app"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.2",
+    "pyarrow>=16",
+]
