@@ -106,7 +106,7 @@ function MemberSearch() {
 }
 
 function MemberDetailPage({ memberId }: { memberId: number }) {
-  // Career: all congresses this member appeared in
+  // Career: all congresses this member appeared in, joined with derived member_stats
   const career = useQuery<{
     cong: number;
     mc_name: string;
@@ -115,11 +115,16 @@ function MemberDetailPage({ memberId }: { memberId: number }) {
     cd: number | null;
     nominate: number | null;
     caucus_count: bigint;
+    betweenness: number | null;
+    cross_party_share: number | null;
   }>(
     `SELECT m.cong, m.mc_name, m.party, m.state_abv, m.cd, m.nominate,
-            COUNT(mb.caucus_id) AS caucus_count
+            COUNT(mb.caucus_id) AS caucus_count,
+            MAX(ms.betweenness) AS betweenness,
+            MAX(ms.cross_party_share) AS cross_party_share
      FROM members m
      LEFT JOIN memberships mb ON mb.member_id = m.member_id AND mb.cong = m.cong
+     LEFT JOIN member_stats ms ON ms.member_id = m.member_id AND ms.cong = m.cong
      WHERE m.member_id = ?
      GROUP BY m.cong, m.mc_name, m.party, m.state_abv, m.cd, m.nominate
      ORDER BY m.cong`,
@@ -168,6 +173,42 @@ function MemberDetailPage({ memberId }: { memberId: number }) {
     latest ? [memberId, latest.cong] : []
   );
 
+  // Similar members from the SVD embedding — cross-congress, "members like this one".
+  const similar = useQuery<{
+    neighbor_member_id: number;
+    score: number;
+    mc_name: string;
+    party: number;
+    state_abv: string;
+  }>(
+    `SELECT sm.neighbor_member_id, sm.score,
+            (SELECT mc_name FROM members WHERE member_id = sm.neighbor_member_id ORDER BY cong DESC LIMIT 1) AS mc_name,
+            (SELECT party FROM members WHERE member_id = sm.neighbor_member_id ORDER BY cong DESC LIMIT 1) AS party,
+            (SELECT state_abv FROM members WHERE member_id = sm.neighbor_member_id ORDER BY cong DESC LIMIT 1) AS state_abv
+     FROM similar_members sm
+     WHERE sm.member_id = ?
+     ORDER BY sm.rank
+     LIMIT 10`,
+    [memberId]
+  );
+
+  // Link-prediction: predicted caucuses the member is NOT in (latest cong).
+  const recommendations = useQuery<{
+    caucus_id: number;
+    caucus_name: string;
+    score: number;
+  }>(
+    latest
+      ? `SELECT lp.caucus_id, c.caucus_name, lp.score
+         FROM link_predictions lp
+         JOIN caucuses c ON c.caucus_id = lp.caucus_id AND c.cong = lp.cong
+         WHERE lp.member_id = ? AND lp.cong = ?
+         ORDER BY lp.rank
+         LIMIT 8`
+      : null,
+    latest ? [memberId, latest.cong] : []
+  );
+
   const ideologyOptions = useMemo<Plot.PlotOptions | null>(() => {
     if (!career.data || !career.data.some((r) => r.nominate != null)) return null;
     const rows = career.data
@@ -206,6 +247,50 @@ function MemberDetailPage({ memberId }: { memberId: number }) {
           y: (d) => Number(d.caucus_count),
           fill: (d) => partyInfo(d.party).color,
         }),
+      ],
+    };
+  }, [career.data]);
+
+  const networkOptions = useMemo<Plot.PlotOptions | null>(() => {
+    if (!career.data || !career.data.some((r) => r.betweenness != null)) return null;
+    const rows = career.data
+      .filter((r) => r.betweenness != null)
+      .map((r) => ({
+        cong: r.cong,
+        bc: (r.betweenness as number) * 1000,
+        cross: (r.cross_party_share ?? 0) * 100,
+      }));
+    return {
+      height: 140,
+      marginLeft: 40,
+      marginBottom: 30,
+      x: { label: 'Congress', tickFormat: 'd' },
+      y: { label: 'Betweenness (‰)', grid: true },
+      marks: [
+        Plot.lineY(rows, { x: 'cong', y: 'bc', stroke: '#f59e0b', strokeWidth: 2 }),
+        Plot.dot(rows, { x: 'cong', y: 'bc', fill: '#f59e0b', r: 3 }),
+      ],
+    };
+  }, [career.data]);
+
+  const crossPartyOptions = useMemo<Plot.PlotOptions | null>(() => {
+    if (!career.data || !career.data.some((r) => r.cross_party_share != null)) return null;
+    const rows = career.data
+      .filter((r) => r.cross_party_share != null)
+      .map((r) => ({
+        cong: r.cong,
+        pct: (r.cross_party_share as number) * 100,
+      }));
+    return {
+      height: 140,
+      marginLeft: 40,
+      marginBottom: 30,
+      x: { label: 'Congress', tickFormat: 'd' },
+      y: { label: 'Cross-party share (%)', domain: [0, 100], grid: true },
+      marks: [
+        Plot.ruleY([50], { stroke: '#374151', strokeDasharray: '2,2' }),
+        Plot.lineY(rows, { x: 'cong', y: 'pct', stroke: '#10b981', strokeWidth: 2 }),
+        Plot.dot(rows, { x: 'cong', y: 'pct', fill: '#10b981', r: 3 }),
       ],
     };
   }, [career.data]);
@@ -266,6 +351,28 @@ function MemberDetailPage({ memberId }: { memberId: number }) {
               {caucusCountOptions ? <PlotChart options={caucusCountOptions} /> : null}
             </div>
           </Panel>
+          <Panel title="Bridge score (betweenness × 1000)">
+            <div className="p-3">
+              {networkOptions ? (
+                <PlotChart options={networkOptions} />
+              ) : (
+                <div className="text-xs text-[var(--color-text-dim)] py-4 text-center">
+                  no centrality data yet
+                </div>
+              )}
+            </div>
+          </Panel>
+          <Panel title="Cross-party caucus share">
+            <div className="p-3">
+              {crossPartyOptions ? (
+                <PlotChart options={crossPartyOptions} />
+              ) : (
+                <div className="text-xs text-[var(--color-text-dim)] py-4 text-center">
+                  third-party member or no cross-party ties
+                </div>
+              )}
+            </div>
+          </Panel>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -276,6 +383,85 @@ function MemberDetailPage({ memberId }: { memberId: number }) {
                   · {c.caucus_name}
                 </div>
               ))}
+            </div>
+          </Panel>
+
+          <Panel
+            title="Similar members (embedding)"
+            right={
+              <span className="text-[10px] text-[var(--color-text-dim)]">
+                SVD over caucus memberships · cross-congress
+              </span>
+            }
+          >
+            <div className="p-3 max-h-96 overflow-y-auto">
+              <div className="space-y-1 text-xs">
+                {similar.data?.map((n) => (
+                  <a
+                    key={n.neighbor_member_id}
+                    href={`/member?id=${n.neighbor_member_id}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.history.pushState({}, '', `/member?id=${n.neighbor_member_id}`);
+                      window.dispatchEvent(new PopStateEvent('popstate'));
+                    }}
+                    className="flex items-center justify-between gap-2 py-1 hover:text-[var(--color-text)]"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ background: partyInfo(n.party).color }}
+                      />
+                      <span className="truncate text-[var(--color-text-muted)]">
+                        {n.mc_name ?? `#${n.neighbor_member_id}`}{' '}
+                        <span className="text-[var(--color-text-dim)]">{n.state_abv}</span>
+                      </span>
+                    </div>
+                    <span className="font-mono text-[10px] text-[var(--color-text-dim)] tabular-nums shrink-0">
+                      {n.score.toFixed(2)}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </Panel>
+
+          <Panel
+            title={`Predicted caucuses — ${formatCongress(latest.cong)}`}
+            right={
+              <span className="text-[10px] text-[var(--color-text-dim)]">
+                model-scored, not currently joined
+              </span>
+            }
+          >
+            <div className="p-3 max-h-80 overflow-y-auto">
+              {recommendations.data?.length === 0 ? (
+                <div className="text-xs text-[var(--color-text-dim)] py-2">
+                  already in top candidates
+                </div>
+              ) : (
+                <div className="space-y-1 text-xs">
+                  {recommendations.data?.map((r) => (
+                    <a
+                      key={r.caucus_id}
+                      href={`/caucus?id=${r.caucus_id}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        window.history.pushState({}, '', `/caucus?id=${r.caucus_id}`);
+                        window.dispatchEvent(new PopStateEvent('popstate'));
+                      }}
+                      className="flex items-center justify-between gap-2 py-1 hover:text-[var(--color-text)]"
+                    >
+                      <span className="truncate text-[var(--color-text-muted)] min-w-0">
+                        {r.caucus_name}
+                      </span>
+                      <span className="font-mono text-[10px] text-[var(--color-text-dim)] tabular-nums shrink-0">
+                        {r.score.toFixed(2)}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           </Panel>
 

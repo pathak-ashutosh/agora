@@ -1,8 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import * as Plot from '@observablehq/plot';
 import { Panel } from '@/components/ui/Panel';
+import { PlotChart } from '@/components/ui/PlotChart';
 import { useQuery } from '@/lib/use-query';
 import { partyInfo, formatCongress } from '@/lib/utils';
 import { ArrowRight, ArrowLeft, X } from 'lucide-react';
+import { replaceUrl } from '@/lib/url-state';
+import { query } from '@/lib/duckdb';
 
 type Side = 'left' | 'right';
 
@@ -24,9 +28,103 @@ interface PickedCaucus {
 
 type Picked = PickedMember | PickedCaucus;
 
+function parsePickRef(s: string | null): { kind: 'member' | 'caucus'; id: number; cong?: number } | null {
+  if (!s) return null;
+  const m = /^([mc]):(\d+)(?:@(\d+))?$/.exec(s);
+  if (!m) return null;
+  return {
+    kind: m[1] === 'm' ? 'member' : 'caucus',
+    id: Number(m[2]),
+    cong: m[3] ? Number(m[3]) : undefined,
+  };
+}
+
+async function hydratePick(ref: { kind: 'member' | 'caucus'; id: number; cong?: number }): Promise<Picked | null> {
+  if (ref.kind === 'member') {
+    const rows = await query<{
+      member_id: number;
+      mc_name: string;
+      party: number;
+      state_abv: string;
+      cong: number;
+    }>(
+      `SELECT member_id, mc_name, party, state_abv, cong
+       FROM members
+       WHERE member_id = ?
+       ORDER BY cong DESC
+       LIMIT 1`,
+      [ref.id]
+    );
+    const r = rows[0];
+    if (!r) return null;
+    return {
+      kind: 'member',
+      id: r.member_id,
+      name: r.mc_name,
+      party: r.party,
+      state: r.state_abv,
+      cong: ref.cong ?? r.cong,
+    };
+  }
+  const rows = await query<{ caucus_id: number; caucus_name: string; cong: number }>(
+    `SELECT caucus_id, caucus_name, cong
+     FROM caucuses
+     WHERE caucus_id = ?
+     ORDER BY cong DESC
+     LIMIT 1`,
+    [ref.id]
+  );
+  const r = rows[0];
+  if (!r) return null;
+  return {
+    kind: 'caucus',
+    id: r.caucus_id,
+    name: r.caucus_name,
+    cong: ref.cong ?? r.cong,
+  };
+}
+
+function encodePick(p: Picked | null): string | null {
+  if (!p) return null;
+  const tag = p.kind === 'member' ? 'm' : 'c';
+  return `${tag}:${p.id}@${p.cong}`;
+}
+
 export function Compare() {
   const [left, setLeft] = useState<Picked | null>(null);
   const [right, setRight] = useState<Picked | null>(null);
+  const hydrated = useRef(false);
+
+  // Hydrate from URL on mount
+  useEffect(() => {
+    if (hydrated.current) return;
+    hydrated.current = true;
+    const p = new URLSearchParams(window.location.search);
+    const aRef = parsePickRef(p.get('a'));
+    const bRef = parsePickRef(p.get('b'));
+    (async () => {
+      if (aRef) {
+        const hydratedA = await hydratePick(aRef);
+        if (hydratedA) setLeft(hydratedA);
+      }
+      if (bRef) {
+        const hydratedB = await hydratePick(bRef);
+        if (hydratedB) setRight(hydratedB);
+      }
+    })();
+  }, []);
+
+  // Write URL on state change
+  useEffect(() => {
+    if (!hydrated.current) return;
+    const p = new URLSearchParams();
+    const a = encodePick(left);
+    const b = encodePick(right);
+    if (a) p.set('a', a);
+    if (b) p.set('b', b);
+    const q = p.toString();
+    replaceUrl(q ? `/compare?${q}` : '/compare');
+  }, [left, right]);
 
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg)]">
@@ -237,6 +335,58 @@ function CompareDiff({ a, b }: { a: Picked; b: Picked }) {
 
 function MemberDiff({ a, b }: { a: PickedMember; b: PickedMember }) {
   const cong = Math.max(a.cong, b.cong);
+
+  // Both members' careers for trajectory overlay
+  const trajectories = useQuery<{
+    member_id: number;
+    cong: number;
+    nominate: number | null;
+    caucus_count: bigint;
+    betweenness: number | null;
+  }>(
+    `SELECT m.member_id, m.cong, m.nominate,
+            COUNT(mb.caucus_id) AS caucus_count,
+            MAX(ms.betweenness) AS betweenness
+     FROM members m
+     LEFT JOIN memberships mb ON mb.member_id = m.member_id AND mb.cong = m.cong
+     LEFT JOIN member_stats ms ON ms.member_id = m.member_id AND ms.cong = m.cong
+     WHERE m.member_id IN (?, ?)
+     GROUP BY m.member_id, m.cong, m.nominate
+     ORDER BY m.cong`,
+    [a.id, b.id]
+  );
+
+  const nameById = (id: number) => (id === a.id ? a.name : b.name);
+
+  const ideologyOverlay = useMemo<Plot.PlotOptions | null>(() => {
+    if (!trajectories.data || !trajectories.data.some((r) => r.nominate != null)) return null;
+    const rows = trajectories.data
+      .filter((r) => r.nominate != null)
+      .map((r) => ({
+        cong: r.cong,
+        who: nameById(r.member_id),
+        score: r.nominate as number,
+      }));
+    if (rows.length === 0) return null;
+    return {
+      height: 180,
+      marginLeft: 44,
+      marginBottom: 30,
+      x: { label: 'Congress', tickFormat: 'd' },
+      y: { label: 'DW-NOMINATE', domain: [-1, 1], grid: true },
+      color: {
+        domain: [a.name, b.name],
+        range: [partyInfo(a.party).color, partyInfo(b.party).color],
+        legend: true,
+      },
+      marks: [
+        Plot.ruleY([0], { stroke: '#374151' }),
+        Plot.lineY(rows, { x: 'cong', y: 'score', stroke: 'who', strokeWidth: 2 }),
+        Plot.dot(rows, { x: 'cong', y: 'score', fill: 'who', r: 3 }),
+      ],
+    };
+  }, [trajectories.data, a.id, a.name, a.party, b.id, b.name, b.party]);
+
   const diff = useQuery<{
     bucket: string;
     caucus_id: number;
@@ -267,27 +417,101 @@ function MemberDiff({ a, b }: { a: PickedMember; b: PickedMember }) {
   const onlyB = diff.data?.filter((r) => r.bucket === 'only_b') ?? [];
 
   return (
-    <Panel title={`Caucus diff — ${formatCongress(cong)}`}>
-      <div className="p-3 grid grid-cols-3 gap-4 text-xs">
-        <DiffColumn
-          title={`Only ${a.name}`}
-          icon={<ArrowLeft size={12} />}
-          items={onlyA.map((r) => r.caucus_name)}
-        />
-        <DiffColumn title={`Both (${both.length})`} items={both.map((r) => r.caucus_name)} />
-        <DiffColumn
-          title={`Only ${b.name}`}
-          icon={<ArrowRight size={12} />}
-          items={onlyB.map((r) => r.caucus_name)}
-          alignRight
-        />
-      </div>
-    </Panel>
+    <>
+      <Panel title="Ideology trajectory">
+        <div className="p-3">
+          {ideologyOverlay ? (
+            <PlotChart options={ideologyOverlay} />
+          ) : (
+            <div className="text-xs text-[var(--color-text-dim)] py-6 text-center">
+              neither member has DW-NOMINATE coverage
+            </div>
+          )}
+        </div>
+      </Panel>
+
+      <Panel title={`Caucus diff — ${formatCongress(cong)}`}>
+        <div className="p-3 grid grid-cols-3 gap-4 text-xs">
+          <DiffColumn
+            title={`Only ${a.name}`}
+            icon={<ArrowLeft size={12} />}
+            items={onlyA.map((r) => r.caucus_name)}
+          />
+          <DiffColumn title={`Both (${both.length})`} items={both.map((r) => r.caucus_name)} />
+          <DiffColumn
+            title={`Only ${b.name}`}
+            icon={<ArrowRight size={12} />}
+            items={onlyB.map((r) => r.caucus_name)}
+            alignRight
+          />
+        </div>
+      </Panel>
+    </>
   );
 }
 
 function CaucusDiff({ a, b }: { a: PickedCaucus; b: PickedCaucus }) {
   const cong = Math.max(a.cong, b.cong);
+
+  // Both caucuses' histories for overlay
+  const histories = useQuery<{
+    caucus_id: number;
+    cong: number;
+    size: number;
+    bipartisan_score: number;
+    mean_nominate: number | null;
+  }>(
+    `SELECT caucus_id, cong, size, bipartisan_score, mean_nominate
+     FROM caucus_stats
+     WHERE caucus_id IN (?, ?)
+     ORDER BY cong`,
+    [a.id, b.id]
+  );
+
+  const nameById = (id: number) => (id === a.id ? a.name : b.name);
+
+  const sizeOverlay = useMemo<Plot.PlotOptions | null>(() => {
+    if (!histories.data || histories.data.length === 0) return null;
+    const rows = histories.data.map((r) => ({
+      cong: r.cong,
+      who: nameById(r.caucus_id),
+      size: r.size,
+    }));
+    return {
+      height: 160,
+      marginLeft: 40,
+      marginBottom: 30,
+      x: { label: 'Congress', tickFormat: 'd' },
+      y: { label: 'Members', grid: true },
+      color: { domain: [a.name, b.name], range: ['#f59e0b', '#10b981'], legend: true },
+      marks: [
+        Plot.lineY(rows, { x: 'cong', y: 'size', stroke: 'who', strokeWidth: 2 }),
+        Plot.dot(rows, { x: 'cong', y: 'size', fill: 'who', r: 3 }),
+      ],
+    };
+  }, [histories.data, a.id, a.name, b.id, b.name]);
+
+  const bipartisanOverlay = useMemo<Plot.PlotOptions | null>(() => {
+    if (!histories.data || histories.data.length === 0) return null;
+    const rows = histories.data.map((r) => ({
+      cong: r.cong,
+      who: nameById(r.caucus_id),
+      score: r.bipartisan_score * 100,
+    }));
+    return {
+      height: 160,
+      marginLeft: 40,
+      marginBottom: 30,
+      x: { label: 'Congress', tickFormat: 'd' },
+      y: { label: 'Bipartisan %', domain: [0, 100], grid: true },
+      color: { domain: [a.name, b.name], range: ['#f59e0b', '#10b981'], legend: true },
+      marks: [
+        Plot.lineY(rows, { x: 'cong', y: 'score', stroke: 'who', strokeWidth: 2 }),
+        Plot.dot(rows, { x: 'cong', y: 'score', fill: 'who', r: 3 }),
+      ],
+    };
+  }, [histories.data, a.id, a.name, b.id, b.name]);
+
   const diff = useQuery<{
     bucket: string;
     member_id: number;
@@ -329,22 +553,37 @@ function CaucusDiff({ a, b }: { a: PickedCaucus; b: PickedCaucus }) {
   );
 
   return (
-    <Panel title={`Member diff — ${formatCongress(cong)}`}>
-      <div className="p-3 grid grid-cols-3 gap-4 text-xs">
-        <DiffColumn
-          title={`Only ${a.name}`}
-          icon={<ArrowLeft size={12} />}
-          items={onlyA.map((r) => renderMember(r))}
-        />
-        <DiffColumn title={`Both (${both.length})`} items={both.map((r) => renderMember(r))} />
-        <DiffColumn
-          title={`Only ${b.name}`}
-          icon={<ArrowRight size={12} />}
-          items={onlyB.map((r) => renderMember(r))}
-          alignRight
-        />
+    <>
+      <div className="grid grid-cols-2 gap-4">
+        <Panel title="Size over time">
+          <div className="p-3">
+            {sizeOverlay ? <PlotChart options={sizeOverlay} /> : null}
+          </div>
+        </Panel>
+        <Panel title="Bipartisanship over time">
+          <div className="p-3">
+            {bipartisanOverlay ? <PlotChart options={bipartisanOverlay} /> : null}
+          </div>
+        </Panel>
       </div>
-    </Panel>
+
+      <Panel title={`Member diff — ${formatCongress(cong)}`}>
+        <div className="p-3 grid grid-cols-3 gap-4 text-xs">
+          <DiffColumn
+            title={`Only ${a.name}`}
+            icon={<ArrowLeft size={12} />}
+            items={onlyA.map((r) => renderMember(r))}
+          />
+          <DiffColumn title={`Both (${both.length})`} items={both.map((r) => renderMember(r))} />
+          <DiffColumn
+            title={`Only ${b.name}`}
+            icon={<ArrowRight size={12} />}
+            items={onlyB.map((r) => renderMember(r))}
+            alignRight
+          />
+        </div>
+      </Panel>
+    </>
   );
 }
 

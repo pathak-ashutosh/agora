@@ -7,6 +7,7 @@ export interface Metadata {
   caucus_count: number;
   membership_count: number;
   has_nominate: number[];
+  derived_tables?: string[];
 }
 
 let _cache: Metadata | null = null;
