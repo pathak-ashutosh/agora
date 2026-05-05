@@ -1,0 +1,45 @@
+{
+  "congress_min": 103,
+  "congress_max": 116,
+  "congresses": [
+    103,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115,
+    116
+  ],
+  "member_count": 1309,
+  "caucus_count": 1116,
+  "membership_count": 112122,
+  "has_nominate": [
+    106,
+    107,
+    108,
+    109,
+    110,
+    113,
+    114
+  ],
+  "derived_tables": [
+    "member_stats",
+    "caucus_stats",
+    "caucus_lifecycle",
+    "surprising_pairs",
+    "state_stats",
+    "member_embeddings",
+    "caucus_embeddings",
+    "similar_members",
+    "similar_caucuses",
+    "member_projection",
+    "link_predictions"
+  ],
+  "embedding_dim": 32
+}
