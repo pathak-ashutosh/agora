@@ -9,7 +9,7 @@
  */
 import type { FeatureExtractionPipeline } from '@huggingface/transformers';
 
-const MODEL_ID = 'Xenova/all-MiniLM-L6-v2';
+const MODEL_ID = '/models/all-MiniLM-L6-v2/';
 const EMBED_DIM = 384;
 const CACHE_DB = 'agora-nl-cache';
 const CACHE_STORE = 'embeddings';
@@ -71,6 +71,7 @@ async function loadPipeline(
   onProgress?.('loading model…');
   const tx = await import('@huggingface/transformers');
   _pipeline = (await tx.pipeline('feature-extraction', MODEL_ID, {
+    local_files_only: true,
     progress_callback: (p: unknown) => {
       if (onProgress && typeof p === 'object' && p && 'status' in p) {
         onProgress(String((p as { status: string }).status));

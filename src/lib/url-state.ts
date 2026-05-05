@@ -101,6 +101,7 @@ export function buildUrl(args: BuildUrlArgs): string {
   }
   if (args.extra) {
     for (const [k, v] of Object.entries(args.extra)) {
+      if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(k)) continue;
       if (v != null && v !== '') p.set(k, String(v));
     }
   }

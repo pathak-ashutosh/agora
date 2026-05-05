@@ -52,10 +52,14 @@ export function Topbar() {
   const [copied, setCopied] = useState(false);
   const copyLink = () => {
     const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1400);
-    });
+    navigator.clipboard.writeText(url)
+      .then(() => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1400);
+      })
+      .catch(() => {
+        /* clipboard unavailable — silently ignore */
+      });
   };
 
   return (

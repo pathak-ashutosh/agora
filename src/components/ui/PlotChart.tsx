@@ -24,7 +24,7 @@ export function PlotChart({ options, className }: Props) {
       },
       ...options,
     });
-    ref.current.innerHTML = '';
+    while (ref.current.firstChild) ref.current.firstChild.remove();
     ref.current.appendChild(plot);
     return () => {
       plot.remove();
