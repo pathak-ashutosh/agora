@@ -4,6 +4,8 @@ import { Panel } from '@/components/ui/Panel';
 import { PlotChart } from '@/components/ui/PlotChart';
 import { useQuery } from '@/lib/use-query';
 import { partyInfo, formatCongress } from '@/lib/utils';
+import { searchNl, type NlMatch } from '@/lib/nl-search';
+import { Sparkles } from 'lucide-react';
 
 function useCaucusIdFromQuery(): number | null {
   const [id, setId] = useState<number | null>(() => {
@@ -29,14 +31,19 @@ export function CaucusProfile() {
 
 function CaucusSearch() {
   const [q, setQ] = useState('');
-  const { data } = useQuery<{
+  const [mode, setMode] = useState<'exact' | 'semantic'>('exact');
+  const [nlResults, setNlResults] = useState<NlMatch[]>([]);
+  const [nlStatus, setNlStatus] = useState<string | null>(null);
+  const [nlLoading, setNlLoading] = useState(false);
+
+  const exactQuery = useQuery<{
     caucus_id: number;
     caucus_name: string;
     latest_cong: number;
     cong_count: bigint;
     total_members: bigint;
   }>(
-    q.length >= 2
+    mode === 'exact' && q.length >= 2
       ? `SELECT c.caucus_id, MAX(c.caucus_name) AS caucus_name,
                 MAX(c.cong) AS latest_cong,
                 COUNT(DISTINCT c.cong) AS cong_count,
@@ -51,28 +58,92 @@ function CaucusSearch() {
     [`%${q}%`]
   );
 
+  // Semantic search: debounce, run NL embedding + cosine
+  useEffect(() => {
+    if (mode !== 'semantic' || q.length < 3) {
+      setNlResults([]);
+      setNlStatus(null);
+      return;
+    }
+    let cancelled = false;
+    setNlLoading(true);
+    const t = window.setTimeout(async () => {
+      try {
+        const res = await searchNl(q, 25, (m) => {
+          if (!cancelled) setNlStatus(m);
+        });
+        if (!cancelled) {
+          setNlResults(res);
+          setNlStatus(null);
+        }
+      } catch (err) {
+        if (!cancelled) setNlStatus(`error: ${(err as Error).message}`);
+      } finally {
+        if (!cancelled) setNlLoading(false);
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [mode, q]);
+
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg)]">
       <div className="max-w-3xl mx-auto space-y-5">
         <header>
           <h1 className="text-2xl font-semibold tracking-tight">Caucuses</h1>
           <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            Search for a caucus to see roster, party split, ideology spread, and growth over time.
+            Search for a caucus by name, or switch to semantic mode to query with
+            phrases like "veterans healthcare" or "agriculture & rural policy".
           </p>
         </header>
+
+        <div className="flex gap-1">
+          {(['exact', 'semantic'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={`px-2.5 py-1 rounded text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
+                mode === m
+                  ? 'bg-[var(--color-surface-2)] text-[var(--color-text)]'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+              }`}
+            >
+              {m === 'semantic' && <Sparkles size={10} />}
+              {m}
+            </button>
+          ))}
+        </div>
 
         <input
           autoFocus
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search caucus by name…"
+          placeholder={
+            mode === 'semantic'
+              ? 'try "immigration reform" or "cybersecurity"…'
+              : 'Search caucus by name…'
+          }
           className="w-full px-3 py-2 rounded border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-sm focus:outline-none focus:border-[var(--color-accent)]"
         />
 
-        {data && data.length > 0 && (
-          <Panel title={`${data.length} results`}>
+        {mode === 'semantic' && nlStatus && (
+          <div className="text-[11px] font-mono text-[var(--color-text-dim)]">
+            {nlLoading ? '⟳ ' : ''}
+            {nlStatus}
+            {nlStatus === 'cached' && (
+              <span className="ml-2 text-[var(--color-text-dim)]">
+                (embeddings loaded from browser cache)
+              </span>
+            )}
+          </div>
+        )}
+
+        {mode === 'exact' && exactQuery.data && exactQuery.data.length > 0 && (
+          <Panel title={`${exactQuery.data.length} results`}>
             <div className="divide-y divide-[var(--color-border)]">
-              {data.map((c) => (
+              {exactQuery.data.map((c) => (
                 <a
                   key={c.caucus_id}
                   href={`/caucus?id=${c.caucus_id}`}
@@ -86,6 +157,30 @@ function CaucusSearch() {
                   <div className="flex-1 min-w-0 text-sm truncate">{c.caucus_name}</div>
                   <div className="text-[10px] text-[var(--color-text-dim)] font-mono tabular-nums shrink-0">
                     {String(c.cong_count)} congs · {String(c.total_members)} members
+                  </div>
+                </a>
+              ))}
+            </div>
+          </Panel>
+        )}
+
+        {mode === 'semantic' && nlResults.length > 0 && (
+          <Panel title={`${nlResults.length} semantic matches`}>
+            <div className="divide-y divide-[var(--color-border)]">
+              {nlResults.map((r) => (
+                <a
+                  key={r.id}
+                  href={`/caucus?id=${r.id}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.history.pushState({}, '', `/caucus?id=${r.id}`);
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }}
+                  className="flex items-center justify-between gap-3 px-3 py-2 hover:bg-[var(--color-surface-2)] transition-colors"
+                >
+                  <div className="flex-1 min-w-0 text-sm truncate">{r.name}</div>
+                  <div className="text-[10px] text-[var(--color-text-dim)] font-mono tabular-nums shrink-0">
+                    cos {r.score.toFixed(2)}
                   </div>
                 </a>
               ))}
@@ -106,19 +201,36 @@ function CaucusDetailPage({ caucusId }: { caucusId: number }) {
     reps: bigint;
     other: bigint;
     mean_nominate: number | null;
+    median_nominate: number | null;
+    std_nominate: number | null;
+    bipartisan_score: number | null;
   }>(
-    `SELECT c.cong, c.caucus_name,
-            COUNT(DISTINCT mb.member_id) AS members,
-            SUM(CASE WHEN m.party = 100 THEN 1 ELSE 0 END) AS dems,
-            SUM(CASE WHEN m.party = 200 THEN 1 ELSE 0 END) AS reps,
-            SUM(CASE WHEN m.party NOT IN (100, 200) THEN 1 ELSE 0 END) AS other,
-            AVG(m.nominate) AS mean_nominate
-     FROM caucuses c
-     LEFT JOIN memberships mb ON mb.caucus_id = c.caucus_id AND mb.cong = c.cong
-     LEFT JOIN members m ON m.member_id = mb.member_id AND m.cong = mb.cong
-     WHERE c.caucus_id = ?
-     GROUP BY c.cong, c.caucus_name
-     ORDER BY c.cong`,
+    `SELECT cs.cong,
+            cs.caucus_name,
+            cs.size AS members,
+            cs.dems, cs.reps, cs.other,
+            cs.mean_nominate, cs.median_nominate, cs.std_nominate,
+            cs.bipartisan_score
+     FROM caucus_stats cs
+     WHERE cs.caucus_id = ?
+     ORDER BY cs.cong`,
+    [caucusId]
+  );
+
+  const lifecycle = useQuery<{
+    canonical_name: string;
+    first_cong: number;
+    last_cong: number;
+    peak_cong: number;
+    peak_size: number;
+    active_congs: number;
+    mean_bipartisan: number;
+  }>(
+    `SELECT canonical_name, first_cong, last_cong, peak_cong, peak_size,
+            active_congs, mean_bipartisan
+     FROM caucus_lifecycle
+     WHERE caucus_id = ?
+     LIMIT 1`,
     [caucusId]
   );
 
@@ -141,12 +253,81 @@ function CaucusDetailPage({ caucusId }: { caucusId: number }) {
     latest ? [caucusId, latest.cong] : []
   );
 
+  // Similar caucuses from the SVD embedding space
+  const similar = useQuery<{
+    neighbor_caucus_id: number;
+    score: number;
+    caucus_name: string;
+    peak_size: number;
+  }>(
+    `SELECT sc.neighbor_caucus_id, sc.score,
+            COALESCE(cl.canonical_name, '') AS caucus_name,
+            cl.peak_size
+     FROM similar_caucuses sc
+     LEFT JOIN caucus_lifecycle cl ON cl.caucus_id = sc.neighbor_caucus_id
+     WHERE sc.caucus_id = ?
+     ORDER BY sc.rank
+     LIMIT 10`,
+    [caucusId]
+  );
+
+  const driftOptions = useMemo<Plot.PlotOptions | null>(() => {
+    if (!history.data) return null;
+    const rows = history.data
+      .filter((r) => r.mean_nominate != null)
+      .map((r) => ({
+        cong: r.cong,
+        mean: r.mean_nominate as number,
+        lo:
+          (r.mean_nominate as number) - (r.std_nominate ?? 0),
+        hi:
+          (r.mean_nominate as number) + (r.std_nominate ?? 0),
+      }));
+    if (rows.length < 2) return null;
+    return {
+      height: 150,
+      marginLeft: 44,
+      marginBottom: 30,
+      x: { label: 'Congress', tickFormat: 'd' },
+      y: { label: 'DW-NOMINATE', domain: [-1, 1], grid: true },
+      marks: [
+        Plot.ruleY([0], { stroke: '#374151' }),
+        Plot.areaY(rows, { x: 'cong', y1: 'lo', y2: 'hi', fill: '#f59e0b', fillOpacity: 0.15 }),
+        Plot.lineY(rows, { x: 'cong', y: 'mean', stroke: '#f59e0b', strokeWidth: 2 }),
+        Plot.dot(rows, { x: 'cong', y: 'mean', fill: '#f59e0b', r: 3 }),
+      ],
+    };
+  }, [history.data]);
+
+  const bipartisanOptions = useMemo<Plot.PlotOptions | null>(() => {
+    if (!history.data) return null;
+    const rows = history.data
+      .filter((r) => r.bipartisan_score != null)
+      .map((r) => ({
+        cong: r.cong,
+        score: (r.bipartisan_score as number) * 100,
+      }));
+    if (rows.length < 2) return null;
+    return {
+      height: 150,
+      marginLeft: 44,
+      marginBottom: 30,
+      x: { label: 'Congress', tickFormat: 'd' },
+      y: { label: 'Bipartisan score (%)', domain: [0, 100], grid: true },
+      marks: [
+        Plot.areaY(rows, { x: 'cong', y: 'score', fill: '#10b981', fillOpacity: 0.15 }),
+        Plot.lineY(rows, { x: 'cong', y: 'score', stroke: '#10b981', strokeWidth: 2 }),
+        Plot.dot(rows, { x: 'cong', y: 'score', fill: '#10b981', r: 3 }),
+      ],
+    };
+  }, [history.data]);
+
   const growthOptions = useMemo<Plot.PlotOptions | null>(() => {
     if (!history.data) return null;
     const rows = history.data.flatMap((r) => [
-      { cong: r.cong, party: 'Dem', count: Number(r.dems), color: '#3b82f6' },
-      { cong: r.cong, party: 'Rep', count: Number(r.reps), color: '#ef4444' },
-      { cong: r.cong, party: 'Other', count: Number(r.other), color: '#9ca3af' },
+      { cong: r.cong, party: 'Dem', count: Number(r.dems) },
+      { cong: r.cong, party: 'Rep', count: Number(r.reps) },
+      { cong: r.cong, party: 'Other', count: Number(r.other) },
     ]);
     return {
       height: 200,
@@ -209,12 +390,25 @@ function CaucusDetailPage({ caucusId }: { caucusId: number }) {
       <div className="max-w-5xl mx-auto space-y-4">
         <header className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{latest.caucus_name}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {lifecycle.data?.[0]?.canonical_name || latest.caucus_name}
+            </h1>
             <div className="text-sm text-[var(--color-text-muted)] mt-1">
               {history.data!.length} congresses ({formatCongress(history.data![0].cong)}–
               {formatCongress(latest.cong)}) · {totalMembers} members in{' '}
               {formatCongress(latest.cong)}
             </div>
+            {lifecycle.data?.[0] && (
+              <div className="flex items-center gap-2 mt-2 text-[10px] uppercase tracking-wider">
+                <span className="px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] text-[var(--color-text-muted)] font-mono">
+                  peak {formatCongress(lifecycle.data[0].peak_cong)} ·{' '}
+                  {lifecycle.data[0].peak_size}
+                </span>
+                <span className="px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] text-[var(--color-text-muted)] font-mono">
+                  {(lifecycle.data[0].mean_bipartisan * 100).toFixed(0)}% avg bipartisan
+                </span>
+              </div>
+            )}
           </div>
           <a
             href="/caucus"
@@ -234,6 +428,31 @@ function CaucusDetailPage({ caucusId }: { caucusId: number }) {
         </Panel>
 
         <div className="grid grid-cols-2 gap-4">
+          <Panel title="Ideology drift (mean ± 1σ)">
+            <div className="p-3">
+              {driftOptions ? (
+                <PlotChart options={driftOptions} />
+              ) : (
+                <div className="text-xs text-[var(--color-text-dim)] py-6 text-center">
+                  not enough DW-NOMINATE coverage
+                </div>
+              )}
+            </div>
+          </Panel>
+          <Panel title="Bipartisanship over time">
+            <div className="p-3">
+              {bipartisanOptions ? (
+                <PlotChart options={bipartisanOptions} />
+              ) : (
+                <div className="text-xs text-[var(--color-text-dim)] py-6 text-center">
+                  single-congress caucus
+                </div>
+              )}
+            </div>
+          </Panel>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
           <Panel title={`Ideology spread — ${formatCongress(latest.cong)}`}>
             <div className="p-3">
               {ideologyHist ? (
@@ -246,6 +465,50 @@ function CaucusDetailPage({ caucusId }: { caucusId: number }) {
             </div>
           </Panel>
 
+          <Panel
+            title="Similar caucuses (embedding cosine)"
+            right={
+              <span className="text-[10px] text-[var(--color-text-dim)]">
+                derived from member-overlap SVD
+              </span>
+            }
+          >
+            <div className="p-2">
+              {similar.data?.length === 0 ? (
+                <div className="text-xs text-[var(--color-text-dim)] py-3 text-center">
+                  no neighbors
+                </div>
+              ) : (
+                <div className="divide-y divide-[var(--color-border)]">
+                  {similar.data?.map((s, i) => (
+                    <a
+                      key={s.neighbor_caucus_id}
+                      href={`/caucus?id=${s.neighbor_caucus_id}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        window.history.pushState({}, '', `/caucus?id=${s.neighbor_caucus_id}`);
+                        window.dispatchEvent(new PopStateEvent('popstate'));
+                      }}
+                      className="flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--color-surface-2)] text-xs transition-colors"
+                    >
+                      <span className="font-mono text-[10px] text-[var(--color-text-dim)] tabular-nums w-5 shrink-0">
+                        {i + 1}
+                      </span>
+                      <span className="flex-1 min-w-0 truncate">
+                        {s.caucus_name || `caucus ${s.neighbor_caucus_id}`}
+                      </span>
+                      <span className="font-mono text-[10px] tabular-nums text-[var(--color-text-dim)] shrink-0">
+                        {s.score.toFixed(2)}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Panel>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4">
           <Panel title={`Roster — ${formatCongress(latest.cong)} (${roster.data?.length ?? 0})`}>
             <div className="p-3 max-h-80 overflow-y-auto">
               <div className="space-y-0.5 text-xs">

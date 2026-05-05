@@ -7,9 +7,15 @@ import { NetworkExplorer } from '@/scenes/NetworkExplorer';
 import { MemberProfile } from '@/scenes/MemberProfile';
 import { CaucusProfile } from '@/scenes/CaucusProfile';
 import { Compare } from '@/scenes/Compare';
+import { Insights } from '@/scenes/Insights';
+import { Geography } from '@/scenes/Geography';
+import { EmbeddingSpace } from '@/scenes/EmbeddingSpace';
 
 function Scene() {
   const path = useRoute();
+  if (path.startsWith('/insights')) return <Insights />;
+  if (path.startsWith('/geography')) return <Geography />;
+  if (path.startsWith('/embedding')) return <EmbeddingSpace />;
   if (path.startsWith('/member')) return <MemberProfile />;
   if (path.startsWith('/caucus')) return <CaucusProfile />;
   if (path.startsWith('/compare')) return <Compare />;
@@ -36,11 +42,17 @@ export default function App() {
 
   if (!ready) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-[var(--color-bg)] text-[var(--color-text-dim)] text-xs gap-2">
-        <div className="font-mono text-lg text-[var(--color-text)]">
+      <div className="h-screen flex flex-col items-center justify-center bg-[var(--color-bg)] text-[var(--color-text-dim)] text-xs gap-4">
+        <div className="font-mono text-xl text-[var(--color-text)]">
           agora<span className="text-[var(--color-accent)]">.</span>
         </div>
-        <div>booting duckdb · loading parquet…</div>
+        <div className="w-48 h-0.5 bg-[var(--color-border)] overflow-hidden rounded">
+          <div className="h-full w-1/3 bg-[var(--color-accent)] animate-pulse" />
+        </div>
+        <div className="font-mono">booting duckdb · loading parquet…</div>
+        <div className="text-[10px] text-[var(--color-text-dim)] max-w-xs text-center">
+          all analytics run in-browser. nothing leaves your machine.
+        </div>
       </div>
     );
   }

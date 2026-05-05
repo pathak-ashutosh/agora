@@ -1,8 +1,11 @@
 import { NavLink } from '@/components/shell/NavLink';
-import { Network, User, Layers, GitCompareArrows } from 'lucide-react';
+import { Network, User, Layers, GitCompareArrows, Sparkles, Map, Orbit } from 'lucide-react';
 
 const NAV = [
   { to: '/', label: 'Network', icon: Network },
+  { to: '/insights', label: 'Insights', icon: Sparkles },
+  { to: '/geography', label: 'Geography', icon: Map },
+  { to: '/embedding', label: 'Embedding', icon: Orbit },
   { to: '/member', label: 'Members', icon: User },
   { to: '/caucus', label: 'Caucuses', icon: Layers },
   { to: '/compare', label: 'Compare', icon: GitCompareArrows },
@@ -27,8 +30,11 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
-      <div className="px-4 py-3 border-t border-[var(--color-border)] text-[10px] text-[var(--color-text-dim)]">
-        v0.1.0 · local
+      <div className="px-4 py-3 border-t border-[var(--color-border)] text-[10px] text-[var(--color-text-dim)] space-y-1">
+        <div>v0.2 · runs in-browser</div>
+        <div className="text-[9px] leading-snug">
+          data: Congressional Caucus Network (Ringe et al.) · DW-NOMINATE (Voteview).
+        </div>
       </div>
     </aside>
   );

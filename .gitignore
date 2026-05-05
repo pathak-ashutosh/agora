@@ -41,3 +41,5 @@ public/data/*.parquet
 # Env
 .env
 .env.local
+.vercel
+.playwright*

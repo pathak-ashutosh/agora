@@ -30,7 +30,22 @@ async function instantiate(): Promise<void> {
   // Register the three parquet files as views. With DuckDB-WASM, reading a
   // parquet from a relative URL works by first registering the file URL.
   const origin = window.location.origin;
-  const files = ['members', 'caucuses', 'memberships'];
+  const files = [
+    'members',
+    'caucuses',
+    'memberships',
+    'member_stats',
+    'caucus_stats',
+    'caucus_lifecycle',
+    'surprising_pairs',
+    'state_stats',
+    'member_embeddings',
+    'caucus_embeddings',
+    'similar_members',
+    'similar_caucuses',
+    'member_projection',
+    'link_predictions',
+  ];
   for (const name of files) {
     const url = `${origin}/data/${name}.parquet`;
     await db.registerFileURL(
