@@ -22,8 +22,7 @@ __pycache__/
 # Raw data (110MB of CSVs — kept locally only)
 DATA/
 
-# Generated parquet
-public/data/*.parquet
+
 
 # macOS
 .DS_Store
