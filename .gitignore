@@ -22,6 +22,12 @@ __pycache__/
 # Raw data (110MB of CSVs — kept locally only)
 DATA/
 
+# External data (Voteview, ProPublica bulk bills, legislators — ~900MB, re-fetch via scripts/fetch_external.sh)
+EXTERNAL/
+
+# Generated research datasets (rebuild via research/build_dataset.py)
+research/pairs.parquet
+
 
 
 # macOS
