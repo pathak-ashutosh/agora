@@ -38,35 +38,63 @@ export function Research() {
             Who joins what next? Predicting caucus membership
           </h1>
           <p className="text-sm text-[var(--color-text-muted)] mt-2 leading-relaxed">
-            Given everything observable about the House at congress N — caucus
-            rosters, roll-call votes, cosponsorships, ideology scores — can we
-            predict which caucuses each member joins at N+1? A study in
-            temporal link prediction on a dense affiliation network. Every
-            number below is reproducible from{' '}
-            <code className="text-[11px]">research/</code> in the repo; the
-            model in the demo runs in your browser.
+            Members of Congress join <em>caucuses</em> — informal interest
+            groups like the Congressional Bike Caucus or the House Army Caucus.
+            Some members belong to dozens. This study asks a simple question:
+            looking only at what's known today, can a model predict which
+            caucuses each representative will join in the <em>next</em>{' '}
+            two-year term? Every number below is reproducible from{' '}
+            <code className="text-[11px]">research/</code> in the repo, and the
+            model in the demo at the bottom runs live in your browser.
           </p>
         </header>
 
+        <Panel title="the short version">
+          <ul className="p-4 space-y-2 text-sm text-[var(--color-text-muted)] leading-relaxed list-disc list-inside">
+            <li>
+              <span className="text-[var(--color-text)]">Guessing "the big caucuses" is hard to beat.</span>{' '}
+              Large caucuses recruit constantly, so always predicting the
+              popular ones is an embarrassingly strong strategy.
+            </li>
+            <li>
+              <span className="text-[var(--color-text)]">The best clue is memory, not the moment.</span>{' '}
+              Members often <em>re-join</em> caucuses they left years earlier —
+              a signal invisible to any model that only looks at the present.
+            </li>
+            <li>
+              <span className="text-[var(--color-text)]">The winning model watches change over time.</span>{' '}
+              A neural network that reads three consecutive congresses roughly
+              doubles the accuracy of the best guess-the-popular-one baseline —
+              and it's the exact model scoring candidates on this page.
+            </li>
+          </ul>
+        </Panel>
+
         <Prose title="1 · The task">
-          Candidates are (member, caucus) pairs where the member serves in both
-          congresses, the caucus exists in both, and the member is <em>not</em>{' '}
-          yet a member. Train on transitions 105→106 … 111→112, test on
-          112→113 … 115→116 — strictly temporal, no tuning on test. 1.19M
-          candidate pairs, ~35k actual joins (base rate 0.6–4.8%, swinging
-          with wave elections).
+          Think of it as club recommendations: for every member and every
+          caucus they haven't joined yet, the model outputs a probability that
+          the membership appears next term. The rules keep it honest — models
+          learn only from older congresses (1997–2012) and are graded on newer
+          ones (2012–2020) they have never seen, the same way you'd test a
+          forecast. That's 1.19 million member-caucus possibilities, of which
+          only ~35 thousand actually happened: for any given pair, the answer
+          is almost always "no", which is what makes this hard.
         </Prose>
 
         <DensitySection />
         <RejoinSection />
 
         <Prose title="4 · Results">
-          Static models — including a GraphSAGE over the co-membership graph
-          and DeepWalk/SVD embeddings — never beat caucus size. History cracks
-          it: a logistic regression with six history features doubles PR-AUC;
-          a temporal GNN (GraphSAGE per congress snapshot + GRU across time)
-          is best on PR-AUC at .174±.003. The lesson: on this task,{' '}
-          <em>temporal information beats model capacity</em>.
+          Every model that only looks at the present — no matter how fancy,
+          including graph neural networks and learned embeddings — loses to
+          "bet on the biggest caucus". Add history, and even simple models
+          pull ahead: six history-based clues (was this member in this caucus
+          before? how recently? how much do they churn?) roughly double the
+          precision. The best overall model is a <em>temporal</em> graph
+          neural network: it reads three consecutive congresses and learns how
+          the network moves. The lesson generalizes:{' '}
+          <em>knowing how things change beats a smarter look at a frozen
+          snapshot</em>.
         </Prose>
 
         <Panel title="test-set results · 4 held-out transitions">
@@ -105,6 +133,21 @@ export function Research() {
                 })}
               </tbody>
             </table>
+            <div className="mt-3 pt-2 border-t border-[var(--color-border)] text-[11px] text-[var(--color-text-dim)] leading-relaxed space-y-1">
+              <div>
+                <span className="text-[var(--color-text-muted)]">How to read this:</span>{' '}
+                higher is better everywhere. <span className="font-mono">PR-AUC</span> is
+                the headline — how well a model concentrates actual joins at the top
+                of a very long list of possibilities (random guessing ≈ .027 here).
+              </div>
+              <div>
+                <span className="font-mono">recall@10</span>: of the caucuses a member
+                really did join, the share the model ranked in its top-10 guesses for
+                them. <span className="font-mono">MRR</span>: how close to #1 the first
+                correct guess sits (1.0 = always first). <span className="font-mono">ROC-AUC</span>:
+                chance a real join outranks a random non-join (.5 = coin flip).
+              </div>
+            </div>
           </div>
         </Panel>
 
@@ -163,11 +206,16 @@ function DensitySection() {
   return (
     <section className="space-y-2">
       <Prose title="2 · Why the classic playbook fails">
-        Common-neighbors, Adamic-Adar and friends assume shared neighbors are
-        informative. Here the affiliation network is so dense that the median
-        candidate pair already shares a caucus with 98% of the target's
-        members — the signal saturates, and plain common-neighbors scores at
-        chance (AUC .48). Caucus size alone is a brutal baseline.
+        The standard trick for predicting new connections is
+        friend-of-a-friend logic: you'll probably join a club full of people
+        you already share clubs with. That logic breaks here, because caucus
+        membership is extraordinarily dense — by recent congresses the average
+        member belongs to <em>30+ caucuses</em>, so nearly everyone already
+        shares a caucus with nearly everyone else. When a clue is true for
+        every candidate, it stops being a clue: the classic
+        "common-neighbors" score does no better than a coin flip. Meanwhile
+        the dumbest strategy — always bet on the biggest caucuses — turns out
+        to be genuinely hard to beat.
       </Prose>
       {options && (
         <Panel title="density, computed live from memberships.parquet">
@@ -209,31 +257,40 @@ function RejoinSection() {
   return (
     <section className="space-y-2">
       <Prose title="3 · The signal everyone misses: people come back">
-        The single strongest predictor isn't in the congress-N snapshot at
-        all. Members <em>rejoin</em> caucuses they previously left.
+        The strongest predictor isn't anywhere in the current picture of
+        Congress — it's in the past. When a member "joins" a caucus, a big
+        share of the time they're actually <em>returning</em> to one they
+        belonged to years ago and left (often after losing a committee seat,
+        switching districts, or a caucus going dormant). The two numbers below
+        make the point: knowing a member's history changes the odds by an
+        order of magnitude.
       </Prose>
       <Panel title="rejoin share among new joins · computed in your browser just now">
-        <div className="p-4 flex items-baseline gap-6">
-          <div>
-            <div className="text-3xl font-semibold font-mono text-[var(--color-accent)]">
-              {rate === null ? '…' : `${(rate * 100).toFixed(1)}%`}
+        <div className="p-4 space-y-3">
+          <div className="flex items-baseline gap-10">
+            <div className="flex-1">
+              <div className="text-3xl font-semibold font-mono text-[var(--color-accent)]">
+                {rate === null ? '…' : `${(rate * 100).toFixed(1)}%`}
+              </div>
+              <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-dim)] mt-1">
+                of {n ?? '…'} new joins are members returning to a caucus they'd left
+              </div>
             </div>
-            <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-dim)] mt-1">
-              of {n ?? '…'} new joins (test transitions) are returns
+            <div className="flex-1">
+              <div className="text-3xl font-semibold font-mono text-[var(--color-text-muted)]">
+                1.4%
+              </div>
+              <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-dim)] mt-1">
+                of caucuses members didn't join were ones they'd left
+              </div>
             </div>
           </div>
-          <div>
-            <div className="text-3xl font-semibold font-mono text-[var(--color-text-muted)]">
-              1.4%
-            </div>
-            <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-dim)] mt-1">
-              prior-membership rate among non-joined candidates
-            </div>
-          </div>
-          <div className="text-xs text-[var(--color-text-muted)] leading-relaxed flex-1">
-            In the modeling dataset (stricter candidate rules) it's 18.9% vs
-            1.4% — a 13× enrichment no within-snapshot model can see: the
-            member is <em>not</em> in the caucus at congress N in both cases.
+          <div className="text-xs text-[var(--color-text-muted)] leading-relaxed border-t border-[var(--color-border)] pt-3">
+            Same person, same caucus, same moment in time — the only
+            difference is the past. In the stricter modeling dataset the split
+            is 18.9% vs 1.4%, a 13× difference in the odds. No model that only
+            sees the current congress can use this: in both cases the member
+            is <em>not</em> in the caucus today.
           </div>
         </div>
       </Panel>
@@ -297,10 +354,13 @@ function DemoSection() {
   return (
     <section className="space-y-2">
       <Prose title="5 · Live demo — the model, running here">
-        Pick a member. DuckDB fetches their candidate caucuses and precomputed
-        GNN embeddings; the decoder MLP scores every candidate with ONNX
-        Runtime Web. Green rows are caucuses they actually joined at{' '}
-        {formatCongress(n0 + 1)} — the model never saw these labels.
+        Try it yourself: search for a representative and the trained model
+        scores every caucus they hadn't joined yet, right in your browser —
+        no server involved. Green rows are caucuses they{' '}
+        <em>actually joined</em> in the {formatCongress(n0 + 1)} Congress;
+        the model never saw those answers. "Past member" tags show the rejoin
+        signal doing its work. (Under the hood: DuckDB-WASM fetches the
+        candidates, ONNX Runtime Web runs the neural network's scoring head.)
       </Prose>
       <Panel
         title="temporal GNN · in-browser inference"
