@@ -78,6 +78,25 @@ Three Parquet files (generated from `DATA/` CSVs):
 
 Registered as DuckDB views named `members`, `caucuses`, `memberships`.
 
+### External data layer (research extension)
+
+`scripts/fetch_external.sh` downloads ~900MB raw into `EXTERNAL/` (gitignored):
+Voteview (members/votes/rollcalls, House 103–116), ProPublica bulk bill JSON
+(103–116, sponsor+cosponsor per bill), congress-legislators ID crosswalk.
+`prep_external.py` converts to Parquet in `public/data/`:
+
+- **members_voteview.parquet** — `cong, icpsr, bioguide_id, party_code, nominate_dim1/2, born` (fills all NOMINATE gaps, incl. cong 104)
+- **bills.parquet** — House bills (hr/hres/hjres/hconres), `sponsor_icpsr`, title, top_subject, status (~107k)
+- **cosponsorships.parquet** — `cong, bill_id, icpsr, role (sponsor|cosponsor), sponsored_at, original, withdrawn` (~1.9M rows)
+- **votes.parquet** — `cong, rollnumber, icpsr, cast_code` (~7.8M rows)
+- **rollcalls.parquet** — rollcall metadata incl. `bill_id` linkage
+
+`member_id` in members.parquet IS an ICPSR id — joins directly to `icpsr`
+everywhere. Known quirks: non-voting delegates have no ICPSR (dropped, ~1.2% of
+sponsorship rows); 3 bad ids in DATA/ caucus files (Hunter Jr. cong 111
+14835→20946, D. Dingell cong 114 2605→21522, Obama cong 112 99911→drop) — see
+`ICPSR_REMAP`/`ICPSR_DROP` in prep_external.py.
+
 Metadata sidecar (`metadata.json`): list of congresses, congresses with DW-NOMINATE,
 party codes, etc. Loaded once via `loadMetadata()`.
 
@@ -89,6 +108,27 @@ party codes, etc. Loaded once via `loadMetadata()`.
 ### Party codes (ICPSR)
 
 - 100 = Dem · 200 = Rep · 328/329 = Ind/Other
+
+## Research layer (`research/`)
+
+Caucus link prediction: predict which (member, caucus) memberships appear at
+congress N+1 given data ≤ N. Temporal split: train ≤ 111→112, test 112→113 …
+115→116. Pipeline:
+
+- `research/build_dataset.py` — builds `research/pairs.parquet` (1.19M candidate
+  pairs, 35k joins, 22 leakage-free features: member/caucus attrs, bipartite
+  common-neighbor + Adamic-Adar, cosponsorship ties, roll-call agreement)
+- `research/baselines.py` — heuristics + LR + HistGB → `research/results_baselines.md`
+- `research/graphml.py` — SVD / DeepWalk (hand-rolled skip-gram) / GraphSAGE
+  (pure torch, no PyG) → `research/results_graphml.md`
+
+Current headline results (honest): caucus-size popularity is the strongest
+single heuristic (PR-AUC .079, R@10 .119); LR and GraphSAGE tie at AUC ~.69
+but don't beat popularity on PR-AUC; plain common-neighbors saturates (median
+cn_frac .98 — affiliation net too dense); DeepWalk/SVD embeddings add ~nothing.
+Model ranking is unstable across test transitions (election waves shift base
+rate 0.6–4.3%). Finding so far: caucus joining is popularity-dominated at this
+granularity. Single seed — do multi-seed before claiming anything in writing.
 
 ## Routes
 
