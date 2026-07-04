@@ -125,6 +125,11 @@ congress N+1 given data ≤ N. Temporal split: train ≤ 111→112, test 112→1
 - `research/temporal.py` — history features + conditional task + temporal GNN
   (GraphSAGE per congress snapshot + masked GRU, global node index, 3 seeds)
   → `research/results_temporal.md`
+- `research/export_model.py` — exports decoder MLP → `public/data/tgnn_decoder.onnx`
+  (+ tgnn_embeddings/tgnn_candidates parquet, tgnn_meta.json) for the `/research`
+  scene: two-tower in-browser serving via ONNX Runtime Web (`src/lib/tgnn.ts`).
+  Vite gotcha: import `onnxruntime-web/wasm` and the wasm via
+  `onnxruntime-web/ort-wasm-simd-threaded.wasm?url` (exports map blocks dist/ paths).
 
 Headline results: static models (LR, GraphSAGE, DeepWalk/SVD) all FAIL to beat
 caucus-size popularity on PR-AUC (.079) — dense affiliation net saturates
