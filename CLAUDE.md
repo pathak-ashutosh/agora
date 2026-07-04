@@ -122,13 +122,18 @@ congress N+1 given data ≤ N. Temporal split: train ≤ 111→112, test 112→1
 - `research/graphml.py` — SVD / DeepWalk (hand-rolled skip-gram) / GraphSAGE
   (pure torch, no PyG) → `research/results_graphml.md`
 
-Current headline results (honest): caucus-size popularity is the strongest
-single heuristic (PR-AUC .079, R@10 .119); LR and GraphSAGE tie at AUC ~.69
-but don't beat popularity on PR-AUC; plain common-neighbors saturates (median
-cn_frac .98 — affiliation net too dense); DeepWalk/SVD embeddings add ~nothing.
-Model ranking is unstable across test transitions (election waves shift base
-rate 0.6–4.3%). Finding so far: caucus joining is popularity-dominated at this
-granularity. Single seed — do multi-seed before claiming anything in writing.
+- `research/temporal.py` — history features + conditional task + temporal GNN
+  (GraphSAGE per congress snapshot + masked GRU, global node index, 3 seeds)
+  → `research/results_temporal.md`
+
+Headline results: static models (LR, GraphSAGE, DeepWalk/SVD) all FAIL to beat
+caucus-size popularity on PR-AUC (.079) — dense affiliation net saturates
+structural heuristics (median cn_frac .98). HISTORY cracks it: rejoin signal
+(was_before: 19% of joins vs 1.4% of non-joins) + member churn + caucus
+openness. LR static+history: AP .167, MRR .461, R@10 .203; temporal GNN:
+AP .174±.003 (best), ranking slightly below LR+hist. Ablation: history-only
+AP .142 vs static-only .069. Narrative: temporal information, not model
+capacity, is what matters on this task.
 
 ## Routes
 
