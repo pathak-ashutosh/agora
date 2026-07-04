@@ -45,6 +45,8 @@ async function instantiate(): Promise<void> {
     'similar_caucuses',
     'member_projection',
     'link_predictions',
+    'tgnn_embeddings',
+    'tgnn_candidates',
   ];
   for (const name of files) {
     const url = `${origin}/data/${name}.parquet`;

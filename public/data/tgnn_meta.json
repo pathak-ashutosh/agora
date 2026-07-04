@@ -1,0 +1,28 @@
+{
+  "features": [
+    "ideo_dist",
+    "party_match",
+    "state_frac",
+    "cn_frac",
+    "cn_w",
+    "aa",
+    "vote_agree",
+    "cosp_w",
+    "cosp_frac",
+    "was_before",
+    "n_before",
+    "gap_since",
+    "m_joins_prev",
+    "m_no_prev",
+    "c_new_frac_prev"
+  ],
+  "test_transitions": [
+    112,
+    113,
+    114,
+    115
+  ],
+  "embedding_dim": 64,
+  "val_ap": 0.0967,
+  "seed": 0
+}

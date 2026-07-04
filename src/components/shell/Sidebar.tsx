@@ -1,8 +1,9 @@
 import { NavLink } from '@/components/shell/NavLink';
-import { Network, User, Layers, GitCompareArrows, Sparkles, Map, Orbit } from 'lucide-react';
+import { Network, User, Layers, GitCompareArrows, Sparkles, Map, Orbit, FlaskConical } from 'lucide-react';
 
 const NAV = [
   { to: '/', label: 'Network', icon: Network },
+  { to: '/research', label: 'Research', icon: FlaskConical },
   { to: '/insights', label: 'Insights', icon: Sparkles },
   { to: '/geography', label: 'Geography', icon: Map },
   { to: '/embedding', label: 'Embedding', icon: Orbit },

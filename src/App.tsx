@@ -10,9 +10,11 @@ import { Compare } from '@/scenes/Compare';
 import { Insights } from '@/scenes/Insights';
 import { Geography } from '@/scenes/Geography';
 import { EmbeddingSpace } from '@/scenes/EmbeddingSpace';
+import { Research } from '@/scenes/Research';
 
 function Scene() {
   const path = useRoute();
+  if (path.startsWith('/research')) return <Research />;
   if (path.startsWith('/insights')) return <Insights />;
   if (path.startsWith('/geography')) return <Geography />;
   if (path.startsWith('/embedding')) return <EmbeddingSpace />;

@@ -166,12 +166,16 @@ class TemporalSage(nn.Module):
         h = F.dropout(h, self.dropout, self.training)
         return self.self2(h) + self.nei2(torch.sparse.mm(A, h))
 
-    def forward(self, steps, mi, ci, pair_x):
+    def embed(self, steps):
         h = None
         for X, A, active in steps:  # oldest → newest congress in window
             z = self.encode_step(X, A)
             h_new = self.gru(z, h if h is not None else torch.zeros_like(z))
             h = h_new if h is None else torch.where(active.unsqueeze(1), h_new, h)
+        return h
+
+    def forward(self, steps, mi, ci, pair_x):
+        h = self.embed(steps)
         zm, zc = h[mi], h[ci]
         return self.dec(torch.cat([zm, zc, zm * zc, pair_x], -1)).squeeze(-1)
 
@@ -210,7 +214,7 @@ def build_snapshots(ms: pd.DataFrame, pairs: pd.DataFrame):
     return snaps, midx, cidx
 
 
-def train_temporal_gnn(pairs, ms, feat_cols, seed):
+def train_temporal_gnn(pairs, ms, feat_cols, seed, return_artifacts=False):
     torch.manual_seed(seed)
     np.random.seed(seed)
     snaps, midx, cidx = build_snapshots(ms, pairs)
@@ -268,6 +272,11 @@ def train_temporal_gnn(pairs, ms, feat_cols, seed):
     with torch.no_grad():
         for n0, (steps, mi, ci, px, _) in cache.items():
             out[n0] = model(steps, mi, ci, px).numpy()
+    if return_artifacts:
+        return out, best_ap, epoch, {
+            "model": model, "cache": cache, "midx": midx, "cidx": cidx,
+            "fstats": fstats,
+        }
     return out, best_ap, epoch
 
 
