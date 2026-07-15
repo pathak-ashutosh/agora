@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Panel } from '@/components/ui/Panel';
+import { SceneHeader } from '@/components/ui/SceneHeader';
 import { useQuery } from '@/lib/use-query';
 import { useApp } from '@/lib/store';
 import { formatCongress } from '@/lib/utils';
@@ -61,28 +62,25 @@ export function Geography() {
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg)]">
       <div className="max-w-5xl mx-auto space-y-4">
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Geography — {formatCongress(cong)} Congress
-          </h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            State delegations on a tile-grid cartogram (every state one cell, regardless of size).
-            Click a state to filter the Network Explorer to it.
-          </p>
-        </header>
+        <SceneHeader
+          kicker="fifty states, one grid"
+          title={<>Geography · {formatCongress(cong)} Congress</>}
+          lede="State delegations on a tile-grid cartogram (every state one cell, regardless of size). Click a state to filter the Network Explorer to it."
+        />
 
         <Panel
+          className="reveal reveal-1"
           title={`${METRICS.find((m) => m.key === metric)?.label}`}
           right={
-            <div className="flex gap-1">
+            <div className="flex rounded-full border border-[var(--color-border-strong)] p-0.5">
               {METRICS.map((m) => (
                 <button
                   key={m.key}
                   onClick={() => setMetric(m.key)}
                   title={m.help}
-                  className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-wider ${
+                  className={`px-2.5 py-1 rounded-full text-[10px] uppercase tracking-wider transition-all ${
                     metric === m.key
-                      ? 'bg-[var(--color-accent)] text-black'
+                      ? 'bg-[var(--color-accent)] text-black font-semibold'
                       : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
                   }`}
                 >
@@ -108,7 +106,7 @@ export function Geography() {
           </div>
         </Panel>
 
-        <Panel title="Delegations in detail">
+        <Panel className="reveal reveal-2" title="Delegations in detail">
           <div className="p-3 max-h-96 overflow-y-auto">
             <table className="w-full text-xs">
               <thead className="text-[10px] uppercase tracking-wider text-[var(--color-text-dim)]">
@@ -161,7 +159,7 @@ function extractMetric(r: StateRow, m: Metric): number | null {
 function colorFor(value: number | null, metric: Metric, scale: { lo: number; hi: number }): string {
   if (value == null || !Number.isFinite(value)) return 'transparent';
   const { lo, hi } = scale;
-  if (hi === lo) return '#f59e0b55';
+  if (hi === lo) return 'rgba(217, 165, 69, 0.33)';
 
   if (metric === 'nominate') {
     // diverging: red for liberal (negative) to red/right for conservative (positive)
@@ -174,10 +172,10 @@ function colorFor(value: number | null, metric: Metric, scale: { lo: number; hi:
     return `rgba(239, 68, 68, ${0.2 + t * 0.8})`;
   }
 
-  // sequential: amber ramp
+  // sequential: aged-gold ramp
   const t = (value - lo) / (hi - lo);
-  const alpha = 0.15 + t * 0.85;
-  return `rgba(245, 158, 11, ${alpha})`;
+  const alpha = 0.12 + t * 0.88;
+  return `rgba(217, 165, 69, ${alpha})`;
 }
 
 function StateGrid({
@@ -215,7 +213,11 @@ function StateGrid({
               key={cell.abv}
               transform={`translate(${x} ${y})`}
               onClick={() => active && onClick(cell.abv)}
-              style={{ cursor: active ? 'pointer' : 'default' }}
+              style={{
+                cursor: active ? 'pointer' : 'default',
+                transition: 'opacity 0.15s ease',
+              }}
+              className={active ? 'hover:opacity-75' : undefined}
             >
               <title>
                 {cell.name}
@@ -299,7 +301,7 @@ function Legend({ metric, scale }: { metric: Metric; scale: { lo: number; hi: nu
       <div
         className="h-2 w-48 rounded"
         style={{
-          background: 'linear-gradient(to right, rgba(245,158,11,0.15), rgba(245,158,11,1))',
+          background: 'linear-gradient(to right, rgba(217,165,69,0.12), rgba(217,165,69,1))',
         }}
       />
       <span>{fmt(scale.hi)}</span>

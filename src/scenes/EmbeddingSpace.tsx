@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Panel } from '@/components/ui/Panel';
+import { SceneHeader } from '@/components/ui/SceneHeader';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { useQuery } from '@/lib/use-query';
 import { partyInfo } from '@/lib/utils';
 import { navigate } from '@/lib/router';
@@ -50,18 +52,14 @@ export function EmbeddingSpace() {
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg)]">
       <div className="max-w-5xl mx-auto space-y-4">
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Embedding Space
-          </h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            2D UMAP projection of a 32-dim Truncated-SVD embedding of the member ×
-            caucus matrix (pooled across all congresses). Each point is a member;
-            proximity means similar caucus portfolios. Colors = party.
-          </p>
-        </header>
+        <SceneHeader
+          kicker="every member, one map"
+          title="Embedding Space"
+          lede="2D UMAP projection of a 32-dim Truncated-SVD embedding of the member × caucus matrix (pooled across all congresses). Each point is a member; proximity means similar caucus portfolios. Colors = party."
+        />
 
         <Panel
+          className="reveal reveal-1"
           title="Member embedding (UMAP 2D)"
           right={
             <div className="flex items-center gap-2">
@@ -88,9 +86,7 @@ export function EmbeddingSpace() {
         >
           <div className="p-3 relative">
             {loading ? (
-              <div className="text-xs text-[var(--color-text-dim)] py-10 text-center">
-                loading projection…
-              </div>
+              <Skeleton className="w-full aspect-[760/560] rounded" />
             ) : (
               <Scatter
                 points={points}
@@ -100,13 +96,13 @@ export function EmbeddingSpace() {
             )}
 
             {hover && (
-              <div className="absolute top-4 right-4 px-3 py-2 rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] text-xs max-w-xs">
+              <div className="absolute top-4 right-4 px-3.5 py-2.5 rounded-lg bg-[var(--color-surface-2)]/95 backdrop-blur border border-[var(--color-border-strong)] text-xs max-w-xs shadow-[0_8px_32px_rgba(0,0,0,0.5)] pointer-events-none">
                 <div className="flex items-center gap-2">
                   <span
-                    className="w-1.5 h-1.5 rounded-full"
+                    className="w-2 h-2 rounded-full"
                     style={{ background: partyInfo(hover.party).color }}
                   />
-                  <span className="font-semibold">{hover.mc_name}</span>
+                  <span className="font-display text-sm">{hover.mc_name}</span>
                 </div>
                 <div className="text-[10px] text-[var(--color-text-muted)] mt-1 font-mono">
                   {partyInfo(hover.party).short} · {hover.state_abv} · degree {hover.degree}
@@ -150,8 +146,8 @@ function Scatter({
       onMouseLeave={() => onHover(null)}
     >
       {/* subtle axes */}
-      <line x1={W / 2} y1={pad} x2={W / 2} y2={H - pad} stroke="#1f2937" strokeDasharray="2,3" />
-      <line x1={pad} y1={H / 2} x2={W - pad} y2={H / 2} stroke="#1f2937" strokeDasharray="2,3" />
+      <line x1={W / 2} y1={pad} x2={W / 2} y2={H - pad} stroke="var(--color-border)" strokeDasharray="2,3" />
+      <line x1={pad} y1={H / 2} x2={W - pad} y2={H / 2} stroke="var(--color-border)" strokeDasharray="2,3" />
       {points.map((p) => (
         <circle
           key={p.member_id}
@@ -160,11 +156,17 @@ function Scatter({
           r={rOf(p.degree)}
           fill={partyInfo(p.party).color}
           fillOpacity={0.75}
-          stroke="#0a0a0b"
+          stroke="var(--color-bg)"
           strokeWidth={0.5}
           onMouseEnter={() => onHover(p)}
           onClick={() => onClick(p)}
-          style={{ cursor: 'pointer' }}
+          style={{ cursor: 'pointer', transition: 'r 0.15s ease, fill-opacity 0.15s ease' }}
+          onMouseLeave={(e) => {
+            (e.target as SVGCircleElement).setAttribute('fill-opacity', '0.75');
+          }}
+          onMouseOver={(e) => {
+            (e.target as SVGCircleElement).setAttribute('fill-opacity', '1');
+          }}
         />
       ))}
     </svg>

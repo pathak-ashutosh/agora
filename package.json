@@ -12,6 +12,9 @@
   },
   "dependencies": {
     "@duckdb/duckdb-wasm": "^1.33.1-dev45.0",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@fontsource-variable/newsreader": "^5.2.10",
+    "@fontsource-variable/public-sans": "^5.2.7",
     "@huggingface/transformers": "^4.1.0",
     "@observablehq/plot": "^0.6.17",
     "apache-arrow": "^21.1.0",

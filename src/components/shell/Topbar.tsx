@@ -66,15 +66,15 @@ export function Topbar() {
     <header className="h-14 shrink-0 border-b border-[var(--color-border)] bg-[var(--color-surface)] flex items-center px-5 gap-6">
       {/* Fixed-width left block so the slider track doesn't shift horizontally
           when the DW-NOMINATE badge appears/disappears between congresses. */}
-      <div className="flex items-center gap-3 w-60 shrink-0">
-        <div className="text-xs uppercase tracking-widest text-[var(--color-text-dim)]">
+      <div className="flex items-baseline gap-3 w-60 shrink-0">
+        <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--color-text-dim)]">
           Congress
         </div>
-        <div className="font-mono text-lg font-semibold tabular-nums w-14 text-left">
+        <div className="font-display text-[22px] leading-none tabular w-16 text-left text-[var(--color-text)]">
           {formatCongress(displayCong)}
         </div>
         <span
-          className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] text-[var(--color-text-muted)] font-mono transition-opacity"
+          className="text-[9px] px-1.5 py-0.5 rounded-full border border-[var(--color-border-strong)] text-[var(--color-text-muted)] font-mono transition-opacity"
           style={{ visibility: hasNominate.has(displayCong) ? 'visible' : 'hidden' }}
           aria-hidden={!hasNominate.has(displayCong)}
         >
@@ -82,46 +82,70 @@ export function Topbar() {
         </span>
       </div>
 
-      <div className="flex items-center gap-2 flex-1 max-w-2xl">
-        <input
-          type="range"
-          min={0}
-          max={Math.max(0, congresses.length - 1)}
-          step={1}
-          value={displayIdx}
-          onChange={(e) => setDragIdx(Number(e.target.value))}
-          onPointerUp={(e) => commit(Number((e.target as HTMLInputElement).value))}
-          onKeyUp={(e) => commit(Number((e.target as HTMLInputElement).value))}
-          onBlur={(e) => commit(Number((e.target as HTMLInputElement).value))}
-          className="flex-1 accent-[var(--color-accent)]"
-          disabled={congresses.length === 0}
-        />
-        <div className="flex items-center gap-1 font-mono text-[10px] text-[var(--color-text-dim)] tabular-nums w-16 justify-end">
+      <div className="flex items-center gap-3 flex-1 max-w-2xl">
+        <div className="relative flex-1 flex items-center">
+          {/* tick rail under the slider — one notch per congress */}
+          <div className="absolute inset-x-[7px] top-1/2 mt-[6px] flex justify-between pointer-events-none">
+            {congresses.map((c, i) => (
+              <span
+                key={c}
+                className="w-px h-1.5 rounded-full transition-colors"
+                style={{
+                  background:
+                    i === displayIdx
+                      ? 'var(--color-accent)'
+                      : 'var(--color-border-strong)',
+                }}
+              />
+            ))}
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={Math.max(0, congresses.length - 1)}
+            step={1}
+            value={displayIdx}
+            onChange={(e) => setDragIdx(Number(e.target.value))}
+            onPointerUp={(e) => commit(Number((e.target as HTMLInputElement).value))}
+            onKeyUp={(e) => commit(Number((e.target as HTMLInputElement).value))}
+            onBlur={(e) => commit(Number((e.target as HTMLInputElement).value))}
+            className="flex-1 w-full"
+            aria-label="Congress"
+            disabled={congresses.length === 0}
+          />
+        </div>
+        <div className="flex items-center gap-1 font-mono text-[10px] text-[var(--color-text-dim)] tabular w-16 justify-end">
           <span>{congresses[0] ?? '—'}</span>
-          <span>·</span>
+          <span>–</span>
           <span>{congresses[congresses.length - 1] ?? '—'}</span>
         </div>
       </div>
 
-      <div className="ml-auto flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
-        <span>
-          <span className="inline-block w-2 h-2 rounded-full bg-[var(--color-dem)] mr-1.5" />
-          Dem
-        </span>
-        <span>
-          <span className="inline-block w-2 h-2 rounded-full bg-[var(--color-rep)] mr-1.5" />
-          Rep
-        </span>
-        <span>
-          <span className="inline-block w-2 h-2 rounded-full bg-[var(--color-ind)] mr-1.5" />
-          Ind
-        </span>
+      <div className="ml-auto flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+        {(
+          [
+            ['Dem', 'var(--color-dem)'],
+            ['Rep', 'var(--color-rep)'],
+            ['Ind', 'var(--color-ind)'],
+          ] as const
+        ).map(([label, color]) => (
+          <span
+            key={label}
+            className="hidden md:flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-[var(--color-border)] text-[10px]"
+          >
+            <span
+              className="inline-block w-1.5 h-1.5 rounded-full"
+              style={{ background: color }}
+            />
+            {label}
+          </span>
+        ))}
         <button
           onClick={copyLink}
           title="Copy shareable link to current view"
-          className="flex items-center gap-1.5 px-2 py-1 rounded border border-[var(--color-border-strong)] hover:border-[var(--color-accent)] hover:text-[var(--color-text)] transition-colors"
+          className="ml-2 flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[var(--color-border-strong)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] active:scale-95 transition-all"
         >
-          {copied ? <Check size={13} /> : <Link2 size={13} />}
+          {copied ? <Check size={12} /> : <Link2 size={12} />}
           <span className="text-[10px] uppercase tracking-wider">
             {copied ? 'copied' : 'share'}
           </span>

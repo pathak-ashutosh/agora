@@ -2,10 +2,12 @@ import { useMemo, useState, useEffect } from 'react';
 import * as Plot from '@observablehq/plot';
 import { Panel } from '@/components/ui/Panel';
 import { PlotChart } from '@/components/ui/PlotChart';
+import { SceneHeader } from '@/components/ui/SceneHeader';
+import { Skeleton, SkeletonRows } from '@/components/ui/Skeleton';
 import { useQuery } from '@/lib/use-query';
 import { partyInfo, formatCongress } from '@/lib/utils';
 import { searchNl, type NlMatch } from '@/lib/nl-search';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Search } from 'lucide-react';
 
 function useCaucusIdFromQuery(): number | null {
   const [id, setId] = useState<number | null>(() => {
@@ -91,42 +93,53 @@ function CaucusSearch() {
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg)]">
       <div className="max-w-3xl mx-auto space-y-5">
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight">Caucuses</h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            Search for a caucus by name, or switch to semantic mode to query with
-            phrases like "veterans healthcare" or "agriculture & rural policy".
-          </p>
-        </header>
-
-        <div className="flex gap-1">
-          {(['exact', 'semantic'] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={`px-2.5 py-1 rounded text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
-                mode === m
-                  ? 'bg-[var(--color-surface-2)] text-[var(--color-text)]'
-                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-              }`}
-            >
-              {m === 'semantic' && <Sparkles size={10} />}
-              {m}
-            </button>
-          ))}
-        </div>
-
-        <input
-          autoFocus
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={
-            mode === 'semantic'
-              ? 'try "immigration reform" or "cybersecurity"…'
-              : 'Search caucus by name…'
+        <SceneHeader
+          kicker="1,100+ caucuses, 1993–2020"
+          title="Caucuses"
+          lede={
+            <>
+              Search by name, or switch to <em>semantic</em> mode to query by
+              topic — “veterans healthcare”, “agriculture &amp; rural policy” —
+              matched by an embedding model running in your browser.
+            </>
           }
-          className="w-full px-3 py-2 rounded border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-sm focus:outline-none focus:border-[var(--color-accent)]"
         />
+
+        <div className="flex items-center gap-3 reveal reveal-1">
+          <div className="relative flex-1">
+            <Search
+              size={15}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-dim)] pointer-events-none"
+            />
+            <input
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={
+                mode === 'semantic'
+                  ? 'try “immigration reform” or “cybersecurity”…'
+                  : 'Search caucus by name…'
+              }
+              className="w-full pl-10 pr-4 py-3 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-sm placeholder:text-[var(--color-text-dim)] focus:outline-none focus:border-[var(--color-accent)] focus:shadow-[0_0_0_3px_var(--color-accent-soft)] transition-shadow"
+            />
+          </div>
+          <div className="flex rounded-full border border-[var(--color-border-strong)] p-0.5 shrink-0">
+            {(['exact', 'semantic'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`px-3 py-1.5 rounded-full text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+                  mode === m
+                    ? 'bg-[var(--color-accent)] text-black font-semibold'
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                }`}
+              >
+                {m === 'semantic' && <Sparkles size={10} />}
+                {m}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {mode === 'semantic' && nlStatus && (
           <div className="text-[11px] font-mono text-[var(--color-text-dim)]">
@@ -140,8 +153,11 @@ function CaucusSearch() {
           </div>
         )}
 
+        {mode === 'exact' && q.length >= 2 && exactQuery.loading && <SkeletonRows n={6} />}
+        {mode === 'semantic' && nlLoading && !nlStatus && <SkeletonRows n={6} />}
+
         {mode === 'exact' && exactQuery.data && exactQuery.data.length > 0 && (
-          <Panel title={`${exactQuery.data.length} results`}>
+          <Panel title={`${exactQuery.data.length} results`} className="reveal">
             <div className="divide-y divide-[var(--color-border)]">
               {exactQuery.data.map((c) => (
                 <a
@@ -152,9 +168,9 @@ function CaucusSearch() {
                     window.history.pushState({}, '', `/caucus?id=${c.caucus_id}`);
                     window.dispatchEvent(new PopStateEvent('popstate'));
                   }}
-                  className="flex items-center justify-between gap-3 px-3 py-2 hover:bg-[var(--color-surface-2)] transition-colors"
+                  className="flex items-center justify-between gap-3 px-3.5 py-2.5 row-hover group"
                 >
-                  <div className="flex-1 min-w-0 text-sm truncate">{c.caucus_name}</div>
+                  <div className="flex-1 min-w-0 text-sm truncate group-hover:text-[var(--color-accent)] transition-colors">{c.caucus_name}</div>
                   <div className="text-[10px] text-[var(--color-text-dim)] font-mono tabular-nums shrink-0">
                     {String(c.cong_count)} congs · {String(c.total_members)} members
                   </div>
@@ -165,7 +181,7 @@ function CaucusSearch() {
         )}
 
         {mode === 'semantic' && nlResults.length > 0 && (
-          <Panel title={`${nlResults.length} semantic matches`}>
+          <Panel title={`${nlResults.length} semantic matches`} className="reveal">
             <div className="divide-y divide-[var(--color-border)]">
               {nlResults.map((r) => (
                 <a
@@ -176,9 +192,9 @@ function CaucusSearch() {
                     window.history.pushState({}, '', `/caucus?id=${r.id}`);
                     window.dispatchEvent(new PopStateEvent('popstate'));
                   }}
-                  className="flex items-center justify-between gap-3 px-3 py-2 hover:bg-[var(--color-surface-2)] transition-colors"
+                  className="flex items-center justify-between gap-3 px-3.5 py-2.5 row-hover group"
                 >
-                  <div className="flex-1 min-w-0 text-sm truncate">{r.name}</div>
+                  <div className="flex-1 min-w-0 text-sm truncate group-hover:text-[var(--color-accent)] transition-colors">{r.name}</div>
                   <div className="text-[10px] text-[var(--color-text-dim)] font-mono tabular-nums shrink-0">
                     cos {r.score.toFixed(2)}
                   </div>
@@ -376,8 +392,18 @@ function CaucusDetailPage({ caucusId }: { caucusId: number }) {
 
   if (history.loading || !latest) {
     return (
-      <div className="flex-1 flex items-center justify-center text-[var(--color-text-dim)] text-sm">
-        Loading caucus…
+      <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg)]">
+        <div className="max-w-5xl mx-auto space-y-4">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-96" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <Skeleton className="h-56 rounded-lg" />
+          <div className="grid grid-cols-2 gap-4">
+            <Skeleton className="h-44 rounded-lg" />
+            <Skeleton className="h-44 rounded-lg" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -388,23 +414,26 @@ function CaucusDetailPage({ caucusId }: { caucusId: number }) {
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg)]">
       <div className="max-w-5xl mx-auto space-y-4">
-        <header className="flex items-start justify-between">
+        <header className="flex items-start justify-between reveal">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--color-accent)] mb-1.5">
+              caucus profile
+            </div>
+            <h1 className="font-display text-3xl leading-tight">
               {lifecycle.data?.[0]?.canonical_name || latest.caucus_name}
             </h1>
-            <div className="text-sm text-[var(--color-text-muted)] mt-1">
+            <div className="text-sm text-[var(--color-text-muted)] mt-2">
               {history.data!.length} congresses ({formatCongress(history.data![0].cong)}–
               {formatCongress(latest.cong)}) · {totalMembers} members in{' '}
               {formatCongress(latest.cong)}
             </div>
             {lifecycle.data?.[0] && (
-              <div className="flex items-center gap-2 mt-2 text-[10px] uppercase tracking-wider">
-                <span className="px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] text-[var(--color-text-muted)] font-mono">
+              <div className="flex items-center gap-2 mt-2.5 text-[10px] uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded-full border border-[var(--color-border-strong)] text-[var(--color-text-muted)] font-mono">
                   peak {formatCongress(lifecycle.data[0].peak_cong)} ·{' '}
                   {lifecycle.data[0].peak_size}
                 </span>
-                <span className="px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] text-[var(--color-text-muted)] font-mono">
+                <span className="px-2 py-0.5 rounded-full border border-[var(--color-border-strong)] text-[var(--color-text-muted)] font-mono">
                   {(lifecycle.data[0].mean_bipartisan * 100).toFixed(0)}% avg bipartisan
                 </span>
               </div>
@@ -417,18 +446,18 @@ function CaucusDetailPage({ caucusId }: { caucusId: number }) {
               window.history.pushState({}, '', '/caucus');
               window.dispatchEvent(new PopStateEvent('popstate'));
             }}
-            className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+            className="text-xs px-2.5 py-1.5 rounded-full border border-[var(--color-border-strong)] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] hover:border-[var(--color-accent)] transition-colors"
           >
-            ← back to search
+            ← search
           </a>
         </header>
 
-        <Panel title="Growth & party mix over time">
+        <Panel className="reveal reveal-1" title="Growth & party mix over time">
           <div className="p-3">{growthOptions && <PlotChart options={growthOptions} />}</div>
         </Panel>
 
         <div className="grid grid-cols-2 gap-4">
-          <Panel title="Ideology drift (mean ± 1σ)">
+          <Panel className="reveal reveal-2" title="Ideology drift (mean ± 1σ)">
             <div className="p-3">
               {driftOptions ? (
                 <PlotChart options={driftOptions} />
@@ -439,7 +468,7 @@ function CaucusDetailPage({ caucusId }: { caucusId: number }) {
               )}
             </div>
           </Panel>
-          <Panel title="Bipartisanship over time">
+          <Panel className="reveal reveal-2" title="Bipartisanship over time">
             <div className="p-3">
               {bipartisanOptions ? (
                 <PlotChart options={bipartisanOptions} />
@@ -453,7 +482,7 @@ function CaucusDetailPage({ caucusId }: { caucusId: number }) {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <Panel title={`Ideology spread — ${formatCongress(latest.cong)}`}>
+          <Panel className="reveal reveal-3" title={`Ideology spread — ${formatCongress(latest.cong)}`}>
             <div className="p-3">
               {ideologyHist ? (
                 <PlotChart options={ideologyHist} />
@@ -466,6 +495,7 @@ function CaucusDetailPage({ caucusId }: { caucusId: number }) {
           </Panel>
 
           <Panel
+            className="reveal reveal-3"
             title="Similar caucuses (embedding cosine)"
             right={
               <span className="text-[10px] text-[var(--color-text-dim)]">
@@ -489,7 +519,7 @@ function CaucusDetailPage({ caucusId }: { caucusId: number }) {
                         window.history.pushState({}, '', `/caucus?id=${s.neighbor_caucus_id}`);
                         window.dispatchEvent(new PopStateEvent('popstate'));
                       }}
-                      className="flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--color-surface-2)] text-xs transition-colors"
+                      className="flex items-center gap-2 px-2 py-1.5 rounded row-hover text-xs"
                     >
                       <span className="font-mono text-[10px] text-[var(--color-text-dim)] tabular-nums w-5 shrink-0">
                         {i + 1}
@@ -509,7 +539,7 @@ function CaucusDetailPage({ caucusId }: { caucusId: number }) {
         </div>
 
         <div className="grid grid-cols-1 gap-4">
-          <Panel title={`Roster — ${formatCongress(latest.cong)} (${roster.data?.length ?? 0})`}>
+          <Panel className="reveal reveal-4" title={`Roster — ${formatCongress(latest.cong)} (${roster.data?.length ?? 0})`}>
             <div className="p-3 max-h-80 overflow-y-auto">
               <div className="space-y-0.5 text-xs">
                 {roster.data?.map((m) => (

@@ -1,4 +1,6 @@
 import { Panel } from '@/components/ui/Panel';
+import { SceneHeader } from '@/components/ui/SceneHeader';
+import { SkeletonRows } from '@/components/ui/Skeleton';
 import { useQuery } from '@/lib/use-query';
 import { useApp } from '@/lib/store';
 import { partyInfo, formatCongress } from '@/lib/utils';
@@ -78,18 +80,15 @@ export function Insights() {
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg)]">
       <div className="max-w-6xl mx-auto space-y-4">
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Insights — {formatCongress(cong)} Congress
-          </h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            Bridges, bipartisan caucuses, and surprising cross-party alliances.
-            Swap the congress in the top bar to re-run for any year.
-          </p>
-        </header>
+        <SceneHeader
+          kicker="who holds it together"
+          title={<>Insights · {formatCongress(cong)} Congress</>}
+          lede="Bridges, bipartisan caucuses, and surprising cross-party alliances — recomputed live for whichever congress the top-bar slider points at."
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Panel
+            className="reveal reveal-1"
             title="Top bridges (by betweenness)"
             right={
               <span className="text-[10px] text-[var(--color-text-dim)]">
@@ -98,11 +97,7 @@ export function Insights() {
             }
           >
             <div className="p-2">
-              {bridges.loading && (
-                <div className="text-xs text-[var(--color-text-dim)] p-4 text-center">
-                  computing…
-                </div>
-              )}
+              {bridges.loading && <SkeletonRows n={8} />}
               {bridges.data?.length === 0 && (
                 <div className="text-xs text-[var(--color-text-dim)] p-4 text-center">
                   no bridge data for this congress
@@ -113,16 +108,16 @@ export function Insights() {
                   <button
                     key={r.member_id}
                     onClick={() => navigate(`/member?id=${r.member_id}`)}
-                    className="w-full flex items-center gap-3 px-2 py-1.5 hover:bg-[var(--color-surface-2)] text-left text-xs transition-colors"
+                    className="w-full flex items-center gap-3 px-2 py-1.5 rounded row-hover text-left text-xs group"
                   >
                     <span className="font-mono text-[10px] text-[var(--color-text-dim)] tabular-nums w-5 shrink-0">
                       {i + 1}
                     </span>
                     <span
-                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      className="w-1.5 h-1.5 rounded-full shrink-0 transition-transform group-hover:scale-150"
                       style={{ background: partyInfo(r.party).color }}
                     />
-                    <span className="flex-1 min-w-0 truncate">
+                    <span className="flex-1 min-w-0 truncate group-hover:text-[var(--color-text)] transition-colors">
                       {r.mc_name}{' '}
                       <span className="text-[var(--color-text-dim)]">
                         {r.state_abv}
@@ -151,6 +146,7 @@ export function Insights() {
           </Panel>
 
           <Panel
+            className="reveal reveal-2"
             title="Most bipartisan caucuses"
             right={
               <span className="text-[10px] text-[var(--color-text-dim)]">
@@ -159,17 +155,13 @@ export function Insights() {
             }
           >
             <div className="p-2">
-              {bipartisan.loading && (
-                <div className="text-xs text-[var(--color-text-dim)] p-4 text-center">
-                  computing…
-                </div>
-              )}
+              {bipartisan.loading && <SkeletonRows n={8} />}
               <div className="divide-y divide-[var(--color-border)]">
                 {bipartisan.data?.map((r, i) => (
                   <button
                     key={r.caucus_id}
                     onClick={() => navigate(`/caucus?id=${r.caucus_id}`)}
-                    className="w-full flex items-center gap-3 px-2 py-1.5 hover:bg-[var(--color-surface-2)] text-left text-xs transition-colors"
+                    className="w-full flex items-center gap-3 px-2 py-1.5 rounded row-hover text-left text-xs"
                   >
                     <span className="font-mono text-[10px] text-[var(--color-text-dim)] tabular-nums w-5 shrink-0">
                       {i + 1}
@@ -187,6 +179,7 @@ export function Insights() {
         </div>
 
         <Panel
+          className="reveal reveal-3"
           title="Surprising cross-party alliances"
           right={
             <span className="text-[10px] text-[var(--color-text-dim)]">
@@ -195,11 +188,7 @@ export function Insights() {
           }
         >
           <div className="p-2">
-            {pairs.loading && (
-              <div className="text-xs text-[var(--color-text-dim)] p-4 text-center">
-                computing…
-              </div>
-            )}
+            {pairs.loading && <SkeletonRows n={6} />}
             {pairs.data?.length === 0 && (
               <div className="text-xs text-[var(--color-text-dim)] p-4 text-center">
                 no cross-party pair data for this congress
@@ -241,7 +230,7 @@ export function Insights() {
           </div>
         </Panel>
 
-        <div className="grid grid-cols-3 gap-4 mt-2">
+        <div className="grid grid-cols-3 gap-4 mt-2 reveal reveal-4">
           <Stat
             icon={<Network size={14} />}
             label="top bridge bc"
@@ -333,12 +322,12 @@ function Stat({
   sub: string;
 }) {
   return (
-    <div className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-      <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-[var(--color-text-dim)]">
-        {icon}
+    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5 card-hover">
+      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-[var(--color-text-dim)]">
+        <span className="text-[var(--color-accent)]">{icon}</span>
         <span>{label}</span>
       </div>
-      <div className="text-xl font-semibold tabular-nums mt-1">{value}</div>
+      <div className="font-display text-2xl tabular mt-1.5">{value}</div>
       <div className="text-[11px] text-[var(--color-text-muted)] truncate mt-0.5">
         {sub}
       </div>

@@ -30,12 +30,15 @@ export function Research() {
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg)]">
       <div className="max-w-3xl mx-auto space-y-6 pb-16">
-        <header className="pt-4">
-          <div className="text-[10px] uppercase tracking-widest text-[var(--color-accent)]">
-            research
+        <header className="pt-6 reveal">
+          <div className="text-[10px] uppercase tracking-[0.24em] text-[var(--color-accent)]">
+            research · temporal link prediction
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight mt-1">
-            Who joins what next? Predicting caucus membership
+          <h1 className="font-display text-[34px] leading-[1.15] mt-2">
+            Who joins what next?{' '}
+            <em className="text-[var(--color-text-muted)]">
+              Predicting caucus membership
+            </em>
           </h1>
           <p className="text-sm text-[var(--color-text-muted)] mt-2 leading-relaxed">
             Members of Congress join <em>caucuses</em> — informal interest
@@ -168,12 +171,16 @@ export function Research() {
 }
 
 function Prose({ title, children }: { title: string; children: React.ReactNode }) {
+  const [num, ...rest] = title.split('·');
   return (
     <section>
-      <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-        {title}
+      <h2 className="flex items-baseline gap-2.5 text-[var(--color-text)]">
+        <span className="font-display italic text-lg text-[var(--color-accent)]">
+          {num.trim()}
+        </span>
+        <span className="font-display text-lg">{rest.join('·').trim()}</span>
       </h2>
-      <p className="text-sm text-[var(--color-text-muted)] mt-1.5 leading-relaxed">
+      <p className="text-sm text-[var(--color-text-muted)] mt-2 leading-[1.75]">
         {children}
       </p>
     </section>
@@ -269,7 +276,7 @@ function RejoinSection() {
         <div className="p-4 space-y-3">
           <div className="flex items-baseline gap-10">
             <div className="flex-1">
-              <div className="text-3xl font-semibold font-mono text-[var(--color-accent)]">
+              <div className="font-display text-4xl text-[var(--color-accent)]">
                 {rate === null ? '…' : `${(rate * 100).toFixed(1)}%`}
               </div>
               <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-dim)] mt-1">
@@ -277,7 +284,7 @@ function RejoinSection() {
               </div>
             </div>
             <div className="flex-1">
-              <div className="text-3xl font-semibold font-mono text-[var(--color-text-muted)]">
+              <div className="font-display text-4xl text-[var(--color-text-muted)]">
                 1.4%
               </div>
               <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-dim)] mt-1">

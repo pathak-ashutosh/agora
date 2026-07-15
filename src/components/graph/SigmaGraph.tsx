@@ -124,21 +124,34 @@ export const SigmaGraph = forwardRef<SigmaGraphHandle, Props>(function SigmaGrap
   }));
 
   // Create / destroy Sigma instance when graph reference changes.
+  // Construction is deferred until the container has nonzero size — on a
+  // cold load the graph can finish building before stylesheets apply, and
+  // Sigma throws if instantiated into an unlaid-out (0×0) container.
   useEffect(() => {
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
 
-    const renderer = new Sigma(graph, containerRef.current, {
+    let renderer: Sigma | null = null;
+    let ro: ResizeObserver | null = null;
+
+    const setup = () => {
+      renderer = createRenderer(container);
+      sigmaRef.current = renderer;
+    };
+
+    const createRenderer = (el: HTMLElement): Sigma => {
+      const r = new Sigma(graph, el, {
       renderLabels: true,
-      labelFont: 'Inter, ui-sans-serif, system-ui, sans-serif',
+      labelFont: '"Public Sans Variable", ui-sans-serif, system-ui, sans-serif',
       labelSize: 11,
       labelWeight: '500',
-      labelColor: { color: '#e5e7eb' },
+      labelColor: { color: '#ece7de' },
       defaultDrawNodeHover: drawNodeHoverDark,
       labelDensity: 0.5,
       labelGridCellSize: 100,
       labelRenderedSizeThreshold: 8,
-      defaultNodeColor: '#9ca3af',
-      defaultEdgeColor: '#1f2937',
+      defaultNodeColor: '#a89f90',
+      defaultEdgeColor: '#23201b',
       minCameraRatio: 0.1,
       maxCameraRatio: 10,
       nodeReducer: (node, data) => {
@@ -147,7 +160,7 @@ export const SigmaGraph = forwardRef<SigmaGraphHandle, Props>(function SigmaGrap
         if (hovered && hovered !== node) {
           const neighbors = graph.neighbors(hovered);
           if (!neighbors.includes(node)) {
-            res.color = '#374151';
+            res.color = '#3a342b';
             res.label = '';
           }
         }
@@ -168,35 +181,52 @@ export const SigmaGraph = forwardRef<SigmaGraphHandle, Props>(function SigmaGrap
           if (s !== hovered && t !== hovered) {
             res.hidden = true;
           } else {
-            res.color = '#f59e0b';
+            res.color = '#d9a545';
           }
         }
         return res;
       },
-    });
-    sigmaRef.current = renderer;
+      });
 
-    renderer.on('clickNode', ({ node }) => {
-      onNodeClick?.(node);
-    });
-    renderer.on('doubleClickNode', ({ node, event }) => {
-      event.preventSigmaDefault();
-      onNodeDoubleClick?.(node);
-    });
-    renderer.on('clickStage', () => {
-      onBackgroundClick?.();
-    });
-    renderer.on('enterNode', ({ node }) => {
-      hoveredRef.current = node;
-      renderer.refresh({ skipIndexation: true });
-    });
-    renderer.on('leaveNode', () => {
-      hoveredRef.current = null;
-      renderer.refresh({ skipIndexation: true });
-    });
+      r.on('clickNode', ({ node }) => {
+        onNodeClick?.(node);
+      });
+      r.on('doubleClickNode', ({ node, event }) => {
+        event.preventSigmaDefault();
+        onNodeDoubleClick?.(node);
+      });
+      r.on('clickStage', () => {
+        onBackgroundClick?.();
+      });
+      r.on('enterNode', ({ node }) => {
+        hoveredRef.current = node;
+        r.refresh({ skipIndexation: true });
+      });
+      r.on('leaveNode', () => {
+        hoveredRef.current = null;
+        r.refresh({ skipIndexation: true });
+      });
+      return r;
+    };
+
+    const rect = container.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      setup();
+    } else {
+      ro = new ResizeObserver(() => {
+        const rr = container.getBoundingClientRect();
+        if (rr.width > 0 && rr.height > 0) {
+          ro?.disconnect();
+          ro = null;
+          setup();
+        }
+      });
+      ro.observe(container);
+    }
 
     return () => {
-      renderer.kill();
+      ro?.disconnect();
+      renderer?.kill();
       sigmaRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

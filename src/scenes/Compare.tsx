@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as Plot from '@observablehq/plot';
 import { Panel } from '@/components/ui/Panel';
+import { SceneHeader } from '@/components/ui/SceneHeader';
 import { PlotChart } from '@/components/ui/PlotChart';
 import { useQuery } from '@/lib/use-query';
 import { partyInfo, formatCongress } from '@/lib/utils';
@@ -129,14 +130,13 @@ export function Compare() {
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg)]">
       <div className="max-w-6xl mx-auto space-y-4">
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight">Compare</h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            Pick two members or two caucuses to diff their profiles side-by-side.
-          </p>
-        </header>
+        <SceneHeader
+          kicker="side by side"
+          title="Compare"
+          lede="Pick two members or two caucuses to diff their profiles side-by-side."
+        />
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4 reveal reveal-1">
           <Side side="left" picked={left} onPick={setLeft} other={right} />
           <Side side="right" picked={right} onPick={setRight} other={left} />
         </div>
@@ -187,7 +187,7 @@ function Side({
         }
       >
         <div className="p-4">
-          <div className="text-sm font-semibold">{picked.name}</div>
+          <div className="font-display text-lg leading-snug">{picked.name}</div>
           <div className="text-xs text-[var(--color-text-muted)] mt-1">
             {picked.kind === 'member'
               ? `${partyInfo(picked.party).name} · ${picked.state}`
@@ -202,14 +202,14 @@ function Side({
   return (
     <Panel title={side === 'left' ? 'A — pick one' : 'B — pick one'}>
       <div className="p-3 space-y-3">
-        <div className="flex gap-1">
+        <div className="flex rounded-full border border-[var(--color-border-strong)] p-0.5 w-fit">
           {(['member', 'caucus'] as const).map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
-              className={`px-2 py-1 rounded text-xs ${
+              className={`px-3 py-1 rounded-full text-[11px] uppercase tracking-wider transition-all ${
                 mode === m
-                  ? 'bg-[var(--color-surface-2)] text-[var(--color-text)]'
+                  ? 'bg-[var(--color-accent)] text-black font-semibold'
                   : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
               }`}
             >
@@ -221,7 +221,7 @@ function Side({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search…"
-          className="w-full px-2 py-1.5 rounded border border-[var(--color-border-strong)] bg-[var(--color-bg)] text-xs focus:outline-none focus:border-[var(--color-accent)]"
+          className="w-full px-3 py-2 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-bg)] text-xs placeholder:text-[var(--color-text-dim)] focus:outline-none focus:border-[var(--color-accent)] focus:shadow-[0_0_0_3px_var(--color-accent-soft)] transition-shadow"
         />
         {mode === 'member' ? (
           <MemberResults q={q} onPick={onPick} />

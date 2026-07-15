@@ -2,8 +2,11 @@ import { useMemo, useState, useEffect } from 'react';
 import * as Plot from '@observablehq/plot';
 import { Panel } from '@/components/ui/Panel';
 import { PlotChart } from '@/components/ui/PlotChart';
+import { SceneHeader } from '@/components/ui/SceneHeader';
+import { Skeleton, SkeletonRows } from '@/components/ui/Skeleton';
 import { useQuery } from '@/lib/use-query';
 import { partyInfo, formatCongress } from '@/lib/utils';
+import { Search } from 'lucide-react';
 
 function useMemberIdFromQuery(): number | null {
   const [id, setId] = useState<number | null>(() => {
@@ -55,23 +58,40 @@ function MemberSearch() {
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg)]">
       <div className="max-w-3xl mx-auto space-y-5">
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight">Members</h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            Search any member of Congress to see their caucus history, co-members, and ideology trajectory.
-          </p>
-        </header>
-
-        <input
-          autoFocus
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by name…"
-          className="w-full px-3 py-2 rounded border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-sm focus:outline-none focus:border-[var(--color-accent)]"
+        <SceneHeader
+          kicker="every representative, 1993–2020"
+          title="Members"
+          lede="Search any member of Congress to see their caucus history, co-members, and ideology trajectory."
         />
 
+        <div className="relative reveal reveal-1">
+          <Search
+            size={15}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-dim)] pointer-events-none"
+          />
+          <input
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search by name — try “Pelosi”, “Lewis”, “Paul”…"
+            className="w-full pl-10 pr-4 py-3 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-sm placeholder:text-[var(--color-text-dim)] focus:outline-none focus:border-[var(--color-accent)] focus:shadow-[0_0_0_3px_var(--color-accent-soft)] transition-shadow"
+          />
+        </div>
+
+        {q.length >= 2 && !data && <SkeletonRows n={5} className="reveal" />}
+        {q.length > 0 && q.length < 2 && (
+          <p className="text-xs text-[var(--color-text-dim)] px-1">
+            keep typing — search starts at two letters
+          </p>
+        )}
+        {data && data.length === 0 && (
+          <p className="text-sm text-[var(--color-text-dim)] px-1">
+            no members match “{q}”.
+          </p>
+        )}
+
         {data && data.length > 0 && (
-          <Panel title={`${data.length} results`}>
+          <Panel title={`${data.length} result${data.length === 1 ? '' : 's'}`} className="reveal">
             <div className="divide-y divide-[var(--color-border)]">
               {data.map((m) => (
                 <a
@@ -82,19 +102,24 @@ function MemberSearch() {
                     window.history.pushState({}, '', `/member?id=${m.member_id}`);
                     window.dispatchEvent(new PopStateEvent('popstate'));
                   }}
-                  className="flex items-center gap-3 px-3 py-2 hover:bg-[var(--color-surface-2)] transition-colors"
+                  className="flex items-center gap-3 px-3.5 py-2.5 row-hover group"
                 >
                   <span
-                    className="w-2 h-2 rounded-full shrink-0"
+                    className="w-2 h-2 rounded-full shrink-0 transition-transform group-hover:scale-125"
                     style={{ background: partyInfo(m.party).color }}
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm truncate">{m.mc_name}</div>
+                    <div className="text-sm truncate group-hover:text-[var(--color-accent)] transition-colors">
+                      {m.mc_name}
+                    </div>
                     <div className="text-[10px] text-[var(--color-text-dim)] font-mono">
                       {partyInfo(m.party).short} · {m.state_abv} · {String(m.cong_count)} congresses · latest{' '}
                       {formatCongress(m.latest_cong)}
                     </div>
                   </div>
+                  <span className="text-[var(--color-text-dim)] opacity-0 group-hover:opacity-100 transition-opacity text-xs">
+                    →
+                  </span>
                 </a>
               ))}
             </div>
@@ -297,8 +322,18 @@ function MemberDetailPage({ memberId }: { memberId: number }) {
 
   if (career.loading || !latest) {
     return (
-      <div className="flex-1 flex items-center justify-center text-[var(--color-text-dim)] text-sm">
-        Loading member…
+      <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg)]">
+        <div className="max-w-5xl mx-auto space-y-4">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-72" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-44 rounded-lg" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -307,10 +342,13 @@ function MemberDetailPage({ memberId }: { memberId: number }) {
     <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg)]">
       <div className="max-w-5xl mx-auto space-y-4">
         {/* Header */}
-        <header className="flex items-start justify-between">
+        <header className="flex items-start justify-between reveal">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{latest.mc_name}</h1>
-            <div className="flex items-center gap-2 mt-1 text-sm text-[var(--color-text-muted)]">
+            <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--color-accent)] mb-1.5">
+              member profile
+            </div>
+            <h1 className="font-display text-3xl leading-tight">{latest.mc_name}</h1>
+            <div className="flex items-center gap-2 mt-2 text-sm text-[var(--color-text-muted)]">
               <span
                 className="inline-block w-2 h-2 rounded-full"
                 style={{ background: partyInfo(latest.party).color }}
@@ -328,14 +366,14 @@ function MemberDetailPage({ memberId }: { memberId: number }) {
               window.history.pushState({}, '', '/member');
               window.dispatchEvent(new PopStateEvent('popstate'));
             }}
-            className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+            className="text-xs px-2.5 py-1.5 rounded-full border border-[var(--color-border-strong)] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] hover:border-[var(--color-accent)] transition-colors"
           >
-            ← back to search
+            ← search
           </a>
         </header>
 
         <div className="grid grid-cols-2 gap-4">
-          <Panel title="Ideology trajectory (DW-NOMINATE)">
+          <Panel className="reveal reveal-1" title="Ideology trajectory (DW-NOMINATE)">
             <div className="p-3">
               {ideologyOptions ? (
                 <PlotChart options={ideologyOptions} />
@@ -346,12 +384,12 @@ function MemberDetailPage({ memberId }: { memberId: number }) {
               )}
             </div>
           </Panel>
-          <Panel title="Caucus count over time">
+          <Panel className="reveal reveal-1" title="Caucus count over time">
             <div className="p-3">
               {caucusCountOptions ? <PlotChart options={caucusCountOptions} /> : null}
             </div>
           </Panel>
-          <Panel title="Bridge score (betweenness × 1000)">
+          <Panel className="reveal reveal-2" title="Bridge score (betweenness × 1000)">
             <div className="p-3">
               {networkOptions ? (
                 <PlotChart options={networkOptions} />
@@ -362,7 +400,7 @@ function MemberDetailPage({ memberId }: { memberId: number }) {
               )}
             </div>
           </Panel>
-          <Panel title="Cross-party caucus share">
+          <Panel className="reveal reveal-2" title="Cross-party caucus share">
             <div className="p-3">
               {crossPartyOptions ? (
                 <PlotChart options={crossPartyOptions} />
@@ -376,17 +414,38 @@ function MemberDetailPage({ memberId }: { memberId: number }) {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <Panel title={`Caucuses — ${formatCongress(latest.cong)}`}>
-            <div className="p-3 max-h-96 overflow-y-auto text-xs space-y-0.5">
-              {currentCaucuses.data?.map((c) => (
-                <div key={c.caucus_id} className="text-[var(--color-text-muted)] truncate">
-                  · {c.caucus_name}
-                </div>
-              ))}
+          <Panel
+            className="reveal reveal-3"
+            title={`Caucuses — ${formatCongress(latest.cong)}`}
+            right={
+              <span className="text-[10px] font-mono text-[var(--color-text-dim)]">
+                {currentCaucuses.data?.length ?? '…'}
+              </span>
+            }
+          >
+            <div className="p-3 max-h-96 overflow-y-auto">
+              {currentCaucuses.loading && <SkeletonRows n={6} className="p-0" />}
+              <div className="flex flex-wrap gap-1.5">
+                {currentCaucuses.data?.map((c) => (
+                  <a
+                    key={c.caucus_id}
+                    href={`/caucus?id=${c.caucus_id}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.history.pushState({}, '', `/caucus?id=${c.caucus_id}`);
+                      window.dispatchEvent(new PopStateEvent('popstate'));
+                    }}
+                    className="px-2 py-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)]/50 text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] hover:border-[var(--color-accent)] transition-colors max-w-full truncate"
+                  >
+                    {c.caucus_name}
+                  </a>
+                ))}
+              </div>
             </div>
           </Panel>
 
           <Panel
+            className="reveal reveal-3"
             title="Similar members (embedding)"
             right={
               <span className="text-[10px] text-[var(--color-text-dim)]">
@@ -427,6 +486,7 @@ function MemberDetailPage({ memberId }: { memberId: number }) {
           </Panel>
 
           <Panel
+            className="reveal reveal-4"
             title={`Predicted caucuses — ${formatCongress(latest.cong)}`}
             right={
               <span className="text-[10px] text-[var(--color-text-dim)]">
@@ -465,7 +525,7 @@ function MemberDetailPage({ memberId }: { memberId: number }) {
             </div>
           </Panel>
 
-          <Panel title={`Nearest co-members — ${formatCongress(latest.cong)}`}>
+          <Panel className="reveal reveal-4" title={`Nearest co-members — ${formatCongress(latest.cong)}`}>
             <div className="p-3 max-h-96 overflow-y-auto">
               <div className="space-y-1 text-xs">
                 {neighbors.data?.map((n) => (

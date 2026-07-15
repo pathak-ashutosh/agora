@@ -1,24 +1,36 @@
+/* ------------------------------------------------------------------ fonts
+   Self-hosted variable fonts (CSP: font-src 'self').
+   Public Sans — the U.S. government's own typeface (USWDS) — for UI.
+   Newsreader — editorial serif with fine italics — for display headlines.
+   JetBrains Mono — tabular data.                                          */
+@import "@fontsource-variable/public-sans";
+@import "@fontsource-variable/newsreader";
+@import "@fontsource-variable/newsreader/opsz-italic.css";
+@import "@fontsource-variable/jetbrains-mono";
+
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: "Public Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Newsreader Variable", "Iowan Old Style", Georgia, serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 
-  /* Party colors */
-  --color-dem: #3b82f6;
-  --color-rep: #ef4444;
-  --color-ind: #10b981;
+  /* Party colors (semantic — do not theme) */
+  --color-dem: #4f8ef7;
+  --color-rep: #ef5350;
+  --color-ind: #2fb98a;
 
-  /* Base palette — slate-tinted dark */
-  --color-bg: #0a0e1a;
-  --color-surface: #111827;
-  --color-surface-2: #1f2937;
-  --color-border: #1f2937;
-  --color-border-strong: #374151;
-  --color-text: #e5e7eb;
-  --color-text-muted: #9ca3af;
-  --color-text-dim: #6b7280;
-  --color-accent: #f59e0b;
+  /* Archival ink — warm near-black with aged-gold accent */
+  --color-bg: #0d0c0a;
+  --color-surface: #141210;
+  --color-surface-2: #1d1a16;
+  --color-border: #23201b;
+  --color-border-strong: #3a342b;
+  --color-text: #ece7de;
+  --color-text-muted: #a89f90;
+  --color-text-dim: #6f675a;
+  --color-accent: #d9a545;
+  --color-accent-soft: rgba(217, 165, 69, 0.13);
 }
 
 @layer base {
@@ -26,7 +38,9 @@
     color-scheme: dark;
   }
 
-  html, body, #root {
+  html,
+  body,
+  #root {
     height: 100%;
   }
 
@@ -36,7 +50,34 @@
     color: var(--color-text);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Atmosphere: faint warm glow from the top + archival grain. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(120% 60% at 50% -10%, rgba(217, 165, 69, 0.05), transparent 60%),
+      radial-gradient(80% 50% at 85% 110%, rgba(79, 142, 247, 0.03), transparent 60%);
+  }
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0.35;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.05'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  #root {
+    position: relative;
+    z-index: 1;
   }
 
   ::selection {
@@ -49,13 +90,169 @@
     height: 10px;
   }
   ::-webkit-scrollbar-track {
-    background: var(--color-bg);
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
     background: var(--color-border-strong);
     border-radius: 5px;
+    border: 2px solid var(--color-bg);
   }
   ::-webkit-scrollbar-thumb:hover {
     background: var(--color-text-dim);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Congress slider — instrument styling */
+  input[type="range"] {
+    appearance: none;
+    height: 22px;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 3px;
+    border-radius: 2px;
+    background: linear-gradient(
+      to right,
+      var(--color-border-strong),
+      var(--color-border-strong)
+    );
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    margin-top: -5.5px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    border: 3px solid var(--color-bg);
+    box-shadow:
+      0 0 0 1px var(--color-accent),
+      0 2px 8px rgba(0, 0, 0, 0.6);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  input[type="range"]:hover::-webkit-slider-thumb,
+  input[type="range"]:active::-webkit-slider-thumb {
+    transform: scale(1.25);
+    box-shadow:
+      0 0 0 1px var(--color-accent),
+      0 0 14px rgba(217, 165, 69, 0.45);
+  }
+  input[type="range"]::-moz-range-track {
+    height: 3px;
+    border-radius: 2px;
+    background: var(--color-border-strong);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    border: 3px solid var(--color-bg);
+    box-shadow: 0 0 0 1px var(--color-accent);
+  }
+}
+
+@layer utilities {
+  /* Display serif for scene titles & editorial moments */
+  .font-display {
+    font-family: var(--font-serif);
+    font-optical-sizing: auto;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  /* Staggered entrance — apply .reveal plus .reveal-N for delay steps */
+  .reveal {
+    opacity: 0;
+    animation: reveal-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .reveal-1 { animation-delay: 0.05s; }
+  .reveal-2 { animation-delay: 0.12s; }
+  .reveal-3 { animation-delay: 0.19s; }
+  .reveal-4 { animation-delay: 0.26s; }
+  .reveal-5 { animation-delay: 0.33s; }
+  .reveal-6 { animation-delay: 0.4s; }
+
+  /* Loading shimmer */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    border-radius: 4px;
+    background: var(--color-surface-2);
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    animation: shimmer 1.6s infinite;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(236, 231, 222, 0.045),
+      transparent
+    );
+  }
+
+  /* Interactive row / card affordances */
+  .row-hover {
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .row-hover:hover {
+    background-color: var(--color-surface-2);
+  }
+  .card-hover {
+    transition:
+      border-color 0.2s ease,
+      transform 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+  .card-hover:hover {
+    border-color: var(--color-border-strong);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    animation: none;
+    opacity: 1;
+  }
+  .skeleton::after {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
   }
 }

@@ -157,14 +157,14 @@ export function NetworkExplorer() {
       {/* Graph canvas */}
       <div className="flex-1 relative bg-[var(--color-bg)]">
         {!introDismissed && (
-          <div className="absolute top-2 left-2 z-10 max-w-md rounded border border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur px-3 py-2.5 text-[11px] text-[var(--color-text-muted)] shadow">
-            <div className="flex items-start gap-2">
+          <div className="absolute top-3 left-3 z-10 max-w-md rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface)]/95 backdrop-blur px-3.5 py-3 text-[11px] text-[var(--color-text-muted)] shadow-[0_8px_32px_rgba(0,0,0,0.5)] reveal">
+            <div className="flex items-start gap-2.5">
               <Info size={13} className="text-[var(--color-accent)] mt-0.5 shrink-0" />
               <div className="flex-1">
-                <div className="font-semibold text-[var(--color-text)] mb-1">
+                <div className="font-display text-[13px] text-[var(--color-text)] mb-1">
                   How this works
                 </div>
-                <p>
+                <p className="leading-relaxed">
                   Nodes are members of Congress, sized by caucus count. Edges connect
                   members who share caucuses. Colors = party.{' '}
                   <span className="text-[var(--color-text-dim)]">
@@ -174,7 +174,7 @@ export function NetworkExplorer() {
               </div>
               <button
                 onClick={dismissIntro}
-                className="text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+                className="text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors"
                 aria-label="Dismiss intro"
               >
                 <X size={13} />
@@ -188,13 +188,20 @@ export function NetworkExplorer() {
             Error: {error}
           </div>
         ) : loading && !graph ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[var(--color-text-dim)] text-xs">
-            <div className="w-8 h-8 rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-accent)] animate-spin" />
-            <div>Loading graph…</div>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-[var(--color-text-dim)] text-xs">
+            <div className="relative w-10 h-10">
+              <div className="absolute inset-0 rounded-full border border-[var(--color-border-strong)]" />
+              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[var(--color-accent)] animate-spin" />
+            </div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.2em]">
+              computing layout…
+            </div>
           </div>
         ) : graph && graph.order === 0 ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[var(--color-text-dim)] text-xs">
-            <div>No members match current filters.</div>
+            <div className="font-display text-base text-[var(--color-text-muted)]">
+              No members match current filters
+            </div>
             <div className="text-[10px]">Clear filters or switch congress to see the graph.</div>
           </div>
         ) : graph ? (
@@ -216,7 +223,8 @@ export function NetworkExplorer() {
         ) : null}
 
         {loading && graph ? (
-          <div className="absolute top-2 right-2 text-[10px] font-mono text-[var(--color-text-dim)] bg-[var(--color-surface)] px-2 py-1 rounded border border-[var(--color-border)]">
+          <div className="absolute top-3 right-3 flex items-center gap-2 text-[10px] font-mono text-[var(--color-text-muted)] bg-[var(--color-surface)]/95 backdrop-blur px-2.5 py-1.5 rounded-full border border-[var(--color-border-strong)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
             rebuilding…
           </div>
         ) : null}
@@ -225,7 +233,7 @@ export function NetworkExplorer() {
           <button
             onClick={exportPng}
             title="Download current view as PNG"
-            className="absolute bottom-2 right-2 flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded hover:border-[var(--color-accent)] hover:text-[var(--color-text)] transition-colors"
+            className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] bg-[var(--color-surface)]/95 backdrop-blur border border-[var(--color-border-strong)] rounded-full hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] active:scale-95 transition-all"
           >
             <Download size={12} />
             <span>PNG</span>
