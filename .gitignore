@@ -48,3 +48,6 @@ research/pairs.parquet
 .env.local
 .vercel
 .playwright*
+
+# Python test cache
+.pytest_cache/

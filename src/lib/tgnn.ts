@@ -10,6 +10,9 @@
 import * as ort from 'onnxruntime-web/wasm';
 import wasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url';
 import { query } from './duckdb';
+import { createLogger } from './log';
+
+const log = createLogger('tgnn');
 
 // bundle build embeds the loader mjs; only the .wasm needs a URL
 ort.env.wasm.wasmPaths = { wasm: wasmUrl };
@@ -33,9 +36,14 @@ export function loadMeta(): Promise<TgnnMeta> {
 
 function loadSession(): Promise<ort.InferenceSession> {
   if (!_session) {
+    const end = log.span('onnx session init', 'info');
     _session = ort.InferenceSession.create('/data/tgnn_decoder.onnx', {
       executionProviders: ['wasm'],
+    }).then((s) => {
+      end();
+      return s;
     });
+    _session.catch((err) => log.error('onnx session init failed', err));
   }
   return _session;
 }
@@ -56,6 +64,7 @@ export async function scoreMember(
   n0: number,
   memberId: number
 ): Promise<ScoredCaucus[]> {
+  const end = log.span(`score member ${memberId} @ ${n0}→${n0 + 1}`, 'info');
   const [meta, session] = await Promise.all([loadMeta(), loadSession()]);
   const D = meta.embedding_dim;
 
@@ -78,7 +87,14 @@ export async function scoreMember(
       [n0]
     ),
   ]);
-  if (cands.length === 0 || memEmb.length === 0) return [];
+  if (cands.length === 0 || memEmb.length === 0) {
+    log.warn(
+      `no candidates/embedding for member ${memberId} @ ${n0} ` +
+        `(cands ${cands.length}, emb ${memEmb.length})`
+    );
+    end('empty');
+    return [];
+  }
 
   const zmRow = new Float32Array(D);
   for (let i = 0; i < D; i++) zmRow[i] = Number(memEmb[0][`e${i}`]);
@@ -120,5 +136,6 @@ export async function scoreMember(
   }));
   scored.sort((a, b) => b.prob - a.prob);
   scored.forEach((s, i) => (s.rank = i + 1));
+  end(`${B} candidates scored`);
   return scored;
 }

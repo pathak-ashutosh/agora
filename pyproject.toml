@@ -15,3 +15,8 @@ dependencies = [
     "onnx>=1.22.0",
     "onnxruntime>=1.27.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

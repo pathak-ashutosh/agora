@@ -5,12 +5,12 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** ICPSR party codes */
+/** ICPSR party codes — colors match --color-dem/rep/ind in index.css */
 export const PARTY = {
-  100: { name: 'Democrat', short: 'D', color: '#3b82f6' },
-  200: { name: 'Republican', short: 'R', color: '#ef4444' },
-  328: { name: 'Independent', short: 'I', color: '#10b981' },
-  329: { name: 'Independent', short: 'I', color: '#10b981' },
+  100: { name: 'Democrat', short: 'D', color: '#4f8ef7' },
+  200: { name: 'Republican', short: 'R', color: '#ef5350' },
+  328: { name: 'Independent', short: 'I', color: '#2fb98a' },
+  329: { name: 'Independent', short: 'I', color: '#2fb98a' },
 } as const;
 
 export function partyInfo(code: number) {

@@ -1,4 +1,5 @@
-import { Component, useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
+import { SceneBoundary } from '@/components/SceneBoundary';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { useRoute } from '@/lib/router';
@@ -11,43 +12,6 @@ import { Insights } from '@/scenes/Insights';
 import { Geography } from '@/scenes/Geography';
 import { EmbeddingSpace } from '@/scenes/EmbeddingSpace';
 import { Research } from '@/scenes/Research';
-
-/** A scene that throws must not blank the whole app. */
-class SceneBoundary extends Component<
-  { children: ReactNode; resetKey: string },
-  { error: Error | null }
-> {
-  state = { error: null as Error | null };
-  static getDerivedStateFromError(error: Error) {
-    return { error };
-  }
-  componentDidUpdate(prev: { resetKey: string }) {
-    if (prev.resetKey !== this.props.resetKey && this.state.error) {
-      this.setState({ error: null });
-    }
-  }
-  render() {
-    if (this.state.error) {
-      return (
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm text-[var(--color-text-muted)]">
-          <div className="font-display text-lg text-[var(--color-text)]">
-            This view hit an error
-          </div>
-          <div className="font-mono text-xs text-[var(--color-text-dim)] max-w-md text-center">
-            {this.state.error.message}
-          </div>
-          <button
-            onClick={() => this.setState({ error: null })}
-            className="mt-2 px-3 py-1.5 rounded-full border border-[var(--color-border-strong)] text-xs hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors"
-          >
-            try again
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 function Scene() {
   const path = useRoute();

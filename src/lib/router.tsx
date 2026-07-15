@@ -4,6 +4,9 @@
  * avoids the ceremony of a full routing library.
  */
 import { useSyncExternalStore } from 'react';
+import { createLogger } from './log';
+
+const log = createLogger('router');
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
@@ -28,6 +31,7 @@ export function useRoute(): string {
 
 export function navigate(to: string) {
   if (to === window.location.pathname) return;
+  log.info(`navigate ${window.location.pathname} → ${to}`);
   window.history.pushState({}, '', to);
   listeners.forEach((l) => l());
 }

@@ -5,6 +5,7 @@
  * Data files are served statically by Vite from public/data/*.parquet.
  */
 import * as duckdb from '@duckdb/duckdb-wasm';
+import { createLogger } from './log';
 import duckdb_wasm from '@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url';
 import mvp_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url';
 import duckdb_wasm_eh from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
@@ -15,10 +16,14 @@ const BUNDLES: duckdb.DuckDBBundles = {
   eh: { mainModule: duckdb_wasm_eh, mainWorker: eh_worker },
 };
 
+const log = createLogger('duckdb');
+const SLOW_QUERY_MS = 400;
+
 let _conn: duckdb.AsyncDuckDBConnection | null = null;
 let _ready: Promise<void> | null = null;
 
 async function instantiate(): Promise<void> {
+  const endBoot = log.span('engine boot', 'info');
   const bundle = await duckdb.selectBundle(BUNDLES);
   const worker = new Worker(bundle.mainWorker!, { type: 'module' });
   const logger = new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING);
@@ -66,6 +71,7 @@ async function instantiate(): Promise<void> {
   }
 
   _conn = conn;
+  endBoot(`${files.length} parquet views registered`);
 }
 
 export function ensureDuckDB(): Promise<void> {
@@ -84,18 +90,32 @@ export async function query<T = Record<string, unknown>>(
   await ensureDuckDB();
   if (!_conn) throw new Error('DuckDB connection not initialized');
 
-  let result;
-  if (params.length === 0) {
-    result = await _conn.query(sql);
-  } else {
-    const stmt = await _conn.prepare(sql);
-    try {
-      result = await stmt.query(...params);
-    } finally {
-      await stmt.close();
+  const snippet = sql.replace(/\s+/g, ' ').trim().slice(0, 90);
+  const t0 = performance.now();
+  try {
+    let result;
+    if (params.length === 0) {
+      result = await _conn.query(sql);
+    } else {
+      const stmt = await _conn.prepare(sql);
+      try {
+        result = await stmt.query(...params);
+      } finally {
+        await stmt.close();
+      }
     }
+    const rows = result.toArray().map((row) => row.toJSON()) as T[];
+    const ms = performance.now() - t0;
+    if (ms > SLOW_QUERY_MS) {
+      log.warn(`slow query (${ms.toFixed(0)}ms, ${rows.length} rows): ${snippet}`);
+    } else {
+      log.debug(`query ${ms.toFixed(0)}ms · ${rows.length} rows · ${snippet}`);
+    }
+    return rows;
+  } catch (err) {
+    log.error(`query failed after ${(performance.now() - t0).toFixed(0)}ms: ${snippet}`, err);
+    throw err;
   }
-  return result.toArray().map((row) => row.toJSON()) as T[];
 }
 
 export async function queryOne<T = Record<string, unknown>>(

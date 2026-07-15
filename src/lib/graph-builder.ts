@@ -16,8 +16,11 @@ import forceAtlas2 from 'graphology-layout-forceatlas2';
 import { circular } from 'graphology-layout';
 import louvain from 'graphology-communities-louvain';
 import { query } from './duckdb';
+import { createLogger } from './log';
 import { partyInfo } from './utils';
 import type { EdgeKind, NodeMode } from './store';
+
+const graphLog = createLogger('graph');
 
 export interface BuildOpts {
   cong: number;
@@ -363,8 +366,18 @@ function countCommunities(graph: Graph): number {
 // ============================================================================
 
 export async function buildGraph(opts: BuildOpts): Promise<{ graph: Graph; stats: GraphStats }> {
-  if (opts.mode === 'members') {
-    return buildMemberGraph(opts);
+  const end = graphLog.span(`build ${opts.mode} graph (cong ${opts.cong})`, 'info');
+  try {
+    const result =
+      opts.mode === 'members'
+        ? await buildMemberGraph(opts)
+        : await buildCaucusGraph(opts);
+    end(
+      `${result.graph.order} nodes · ${result.graph.size} edges · ${result.stats.communityCount} communities`
+    );
+    return result;
+  } catch (err) {
+    graphLog.error(`build failed (cong ${opts.cong}, mode ${opts.mode})`, err);
+    throw err;
   }
-  return buildCaucusGraph(opts);
 }
