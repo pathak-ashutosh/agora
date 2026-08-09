@@ -75,18 +75,24 @@ export function NetworkFilters({
       : 0;
   const dens = possible > 0 ? connections / possible : 0;
 
+  // Ideology edges ignore minEdgeWeight — but only in member mode. Caucus
+  // graphs always use shared-member weights even if edgeKind is still ideology.
+  const weightApplies = !(nodeMode === 'members' && edgeKind === 'ideology');
+  const weightUnit = nodeMode === 'members' ? 'caucus' : 'member';
+  const weightUnitPlural = nodeMode === 'members' ? 'caucuses' : 'members';
+
   // Use last-known stats while a rebuild is in flight so status rows don't
   // unmount and shove the controls around under the Advanced sliders.
   const overFiltered =
+    weightApplies &&
     stats != null &&
     stats.nodeCount > 0 &&
     stats.edgeCount === 0 &&
-    minEdgeWeight > 1 &&
-    edgeKind !== 'ideology';
+    minEdgeWeight > 1;
 
   const overDense =
+    weightApplies &&
     !overFiltered &&
-    edgeKind !== 'ideology' &&
     dens > 0.85 &&
     stats != null &&
     stats.nodeCount >= 20;
@@ -128,19 +134,19 @@ export function NetworkFilters({
           </div>
           {overFiltered && (
             <p className="text-[11px] leading-snug text-[var(--color-text-muted)]">
-              No pair shares ≥{minEdgeWeight} caucuses in this congress.{' '}
+              No pair shares ≥{minEdgeWeight} {weightUnitPlural} in this congress.{' '}
               <button
                 onClick={() => setMinEdgeWeight(1)}
                 className="underline decoration-dotted text-[var(--color-accent)] hover:opacity-80"
               >
-                Require fewer shared caucuses
+                Require fewer shared {weightUnitPlural}
               </button>
             </p>
           )}
           {overDense && (
             <p className="text-[11px] leading-snug text-[var(--color-text-muted)]">
-              Nearly everyone is linked — try requiring more shared caucuses in
-              Advanced.
+              Nearly everyone is linked — try requiring more shared {weightUnitPlural}{' '}
+              in Advanced.
             </p>
           )}
         </div>
@@ -224,9 +230,9 @@ export function NetworkFilters({
               </Field>
 
               <Field
-                label={`Require ${minEdgeWeight} shared caucus${minEdgeWeight === 1 ? '' : 'es'}`}
+                label={`Require ${minEdgeWeight} shared ${minEdgeWeight === 1 ? weightUnit : weightUnitPlural}`}
                 hint={
-                  edgeKind === 'ideology' && nodeMode === 'members'
+                  !weightApplies
                     ? 'Applies to shared-caucus edges only'
                     : 'Higher = fewer, stronger links'
                 }
@@ -239,39 +245,41 @@ export function NetworkFilters({
                   value={minEdgeWeight}
                   onChange={(e) => setMinEdgeWeight(Number(e.target.value))}
                   className="w-full accent-[var(--color-accent)]"
-                  disabled={edgeKind === 'ideology' && nodeMode === 'members'}
+                  disabled={!weightApplies}
                 />
               </Field>
 
-              <Field label="State">
-                <div className="max-h-28 overflow-y-auto flex gap-1 flex-wrap pr-0.5">
-                  {STATE_CODES.map((code) => {
-                    const active = states.has(code);
-                    return (
-                      <button
-                        key={code}
-                        onClick={() => toggleState(code)}
-                        className={cn(
-                          'px-1.5 py-0.5 rounded border font-mono text-[10px] transition-colors',
-                          active
-                            ? 'border-[var(--color-accent)] text-[var(--color-accent)] bg-[var(--color-accent-soft)]'
-                            : 'border-[var(--color-border)] text-[var(--color-text-dim)] hover:text-[var(--color-text-muted)]'
-                        )}
-                      >
-                        {code}
-                      </button>
-                    );
-                  })}
-                </div>
-                {states.size > 0 && (
-                  <button
-                    onClick={clearStates}
-                    className="mt-1.5 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
-                  >
-                    clear states
-                  </button>
-                )}
-              </Field>
+              {nodeMode === 'members' && (
+                <Field label="State">
+                  <div className="max-h-28 overflow-y-auto flex gap-1 flex-wrap pr-0.5">
+                    {STATE_CODES.map((code) => {
+                      const active = states.has(code);
+                      return (
+                        <button
+                          key={code}
+                          onClick={() => toggleState(code)}
+                          className={cn(
+                            'px-1.5 py-0.5 rounded border font-mono text-[10px] transition-colors',
+                            active
+                              ? 'border-[var(--color-accent)] text-[var(--color-accent)] bg-[var(--color-accent-soft)]'
+                              : 'border-[var(--color-border)] text-[var(--color-text-dim)] hover:text-[var(--color-text-muted)]'
+                          )}
+                        >
+                          {code}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {states.size > 0 && (
+                    <button
+                      onClick={clearStates}
+                      className="mt-1.5 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+                    >
+                      clear states
+                    </button>
+                  )}
+                </Field>
+              )}
 
               <button
                 onClick={clearExpansion}
