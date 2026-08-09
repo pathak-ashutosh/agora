@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Graph from 'graphology';
 import { SigmaGraph, type SigmaGraphHandle } from '@/components/graph/SigmaGraph';
 import { NetworkFilters } from '@/components/network/NetworkFilters';
-import { GraphStatsPanel } from '@/components/network/GraphStats';
 import { NodeDetail } from '@/components/network/NodeDetail';
 import { buildGraph, type GraphStats } from '@/lib/graph-builder';
 import { useApp } from '@/lib/store';
@@ -149,9 +148,8 @@ export function NetworkExplorer() {
   return (
     <div className="flex-1 flex overflow-hidden">
       {/* Left controls */}
-      <div className="w-64 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-bg)] p-3 space-y-3 overflow-y-auto">
-        <NetworkFilters />
-        <GraphStatsPanel stats={stats} loading={loading} />
+      <div className="w-64 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-bg)] p-3 overflow-y-auto">
+        <NetworkFilters stats={stats} loading={loading} />
       </div>
 
       {/* Graph canvas */}
@@ -165,10 +163,9 @@ export function NetworkExplorer() {
                   How this works
                 </div>
                 <p className="leading-relaxed">
-                  Nodes are members of Congress, sized by caucus count. Edges connect
-                  members who share caucuses. Colors = party.{' '}
+                  Colors = party. Node size = caucus count.{' '}
                   <span className="text-[var(--color-text-dim)]">
-                    Click a node for detail · double-click to pin · drag to pan · scroll to zoom.
+                    Click for detail · double-click to pin · drag to pan · scroll to zoom.
                   </span>
                 </p>
               </div>

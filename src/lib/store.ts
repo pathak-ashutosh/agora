@@ -21,7 +21,7 @@ interface AppState {
   edgeKind: EdgeKind;
   setEdgeKind: (k: EdgeKind) => void;
 
-  /** Top-N nodes by degree (before expand-on-click) */
+  /** How many nodes to show (most-connected first; expand-on-click adds more) */
   topN: number;
   setTopN: (n: number) => void;
 
@@ -35,7 +35,7 @@ interface AppState {
   toggleState: (s: string) => void;
   clearStates: () => void;
 
-  /** Minimum edge weight for rendering */
+  /** Min shared caucuses (or shared members in caucus mode) to draw an edge */
   minEdgeWeight: number;
   setMinEdgeWeight: (w: number) => void;
 
@@ -60,7 +60,7 @@ export const useApp = create<AppState>((set) => ({
   edgeKind: 'co_membership',
   setEdgeKind: (edgeKind) => set({ edgeKind }),
 
-  topN: 150,
+  topN: 80,
   setTopN: (topN) => set({ topN }),
 
   parties: new Set(),
@@ -83,7 +83,7 @@ export const useApp = create<AppState>((set) => ({
     }),
   clearStates: () => set({ states: new Set() }),
 
-  minEdgeWeight: 2,
+  minEdgeWeight: 18,
   setMinEdgeWeight: (minEdgeWeight) => set({ minEdgeWeight }),
 
   expanded: new Set(),
