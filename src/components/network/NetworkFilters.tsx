@@ -75,8 +75,9 @@ export function NetworkFilters({
       : 0;
   const dens = possible > 0 ? connections / possible : 0;
 
+  // Use last-known stats while a rebuild is in flight so status rows don't
+  // unmount and shove the controls around under the Advanced sliders.
   const overFiltered =
-    !loading &&
     stats != null &&
     stats.nodeCount > 0 &&
     stats.edgeCount === 0 &&
@@ -84,7 +85,6 @@ export function NetworkFilters({
     edgeKind !== 'ideology';
 
   const overDense =
-    !loading &&
     !overFiltered &&
     edgeKind !== 'ideology' &&
     dens > 0.85 &&
@@ -113,11 +113,19 @@ export function NetworkFilters({
               </>
             )}
           </div>
-          {!loading && stats != null && (
-            <div className="text-[11px] text-[var(--color-text-muted)]">
-              {connections.toLocaleString()} connection{connections === 1 ? '' : 's'}
-            </div>
-          )}
+          {/* Keep prior counts while rebuild runs — toggling on `loading` collapses this row and janks the panel. */}
+          <div
+            className={cn(
+              'text-[11px] text-[var(--color-text-muted)] min-h-[1.25rem]',
+              loading && stats != null && 'opacity-60'
+            )}
+          >
+            {stats != null
+              ? `${connections.toLocaleString()} connection${connections === 1 ? '' : 's'}`
+              : loading
+                ? '…'
+                : null}
+          </div>
           {overFiltered && (
             <p className="text-[11px] leading-snug text-[var(--color-text-muted)]">
               No pair shares ≥{minEdgeWeight} caucuses in this congress.{' '}
